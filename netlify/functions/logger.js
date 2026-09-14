@@ -1,19 +1,35 @@
 exports.handler = async (event, context) => {
-  let payload = {};
+  const queryIp = event.queryStringParameters ? event.queryStringParameters.ip : null;
+  const rawIp = queryIp || 
+                event.headers['cf-connecting-ip'] || 
+                event.headers['x-nf-client-connection-ip'] || 
+                event.headers['x-forwarded-for'] || 
+                'Bilinmiyor';
 
-  try {
-    if (event.body) {
-      payload = JSON.parse(event.body);
+  const clientIp = rawIp.split(',')[0].trim();
+
+  let country = 'Bilinmiyor';
+  let city = 'Bilinmiyor';
+  let isp = 'Bilinmiyor';
+
+  if (clientIp !== 'Bilinmiyor') {
+    try {
+      // Backend tarafında ipapi.co ile detaylı sorgu
+      const geoRes = await fetch(`https://ipapi.co/${clientIp}/json/`);
+      const geoData = await geoRes.json();
+
+      if (!geoData.error) {
+        country = geoData.country_name || 'Bilinmiyor';
+        city = geoData.city || 'Bilinmiyor';
+        isp = geoData.org || geoData.asn || 'Bilinmiyor';
+      }
+    } catch (e) {
+      console.error("GeoIP hatasi:", e);
     }
-  } catch (e) {}
-
-  const clientIp = payload.ip || event.headers['cf-connecting-ip'] || event.headers['x-forwarded-for'] || 'Bilinmiyor';
-  const country = payload.country || 'Bilinmiyor';
-  const city = payload.city || 'Bilinmiyor';
-  const isp = payload.isp || 'Bilinmiyor';
+  }
 
   const embed = {
-    title: "🚀 Yeni Ziyaretçi (Doğrulanmış Veri)",
+    title: "🚀 Yeni Ziyaretçi Tespit Edildi",
     color: 4690392,
     fields: [
       { name: "IP Adresi", value: clientIp, inline: true },
