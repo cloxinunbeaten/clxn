@@ -19,4 +19,4 @@ jobs:
           key: ${{ secrets.VDS_SSH_KEY }}
           source: "."
           target: "/var/www/html"
-          rm: true
+          rm: false
