@@ -706,7 +706,7 @@ function createParticles(){
   }
 }
 
-const DISCORD_ID = '__DISCORD_ID__';
+let DISCORD_ID = '__DISCORD_ID__';
 const STATUS_LABEL = { online:'Çevrimiçi', idle:'Idle', dnd:'Do Not Disturb', offline:'Offline' };
 const STATUS_COLOR = { online:'#23a55a', idle:'#f0b232', dnd:'#f23f43', offline:'#80848e' };
 
@@ -900,6 +900,9 @@ async function boot(){
     const res = await fetch('/api/status', { cache: 'no-store' });
     if(!res.ok) throw new Error(`Status API ${res.status}`);
     const data = await res.json();
+    if(/^\d{17,20}$/.test(data.profileId || '')){
+      DISCORD_ID = data.profileId;
+    }
     if(data.mode === 'maintenance' || data.mode === 'closed'){
       const page = data.mode === 'closed' ? 'closed.html' : 'maintenance.html';
       const query = new URLSearchParams();
