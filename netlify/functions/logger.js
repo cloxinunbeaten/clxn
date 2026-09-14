@@ -8,7 +8,7 @@ exports.handler = async (event, context) => {
 
   const clientIp = data.ip || event.headers['cf-connecting-ip'] || event.headers['x-forwarded-for'] || 'Bilinmiyor';
 
-  // GeoIP Bilgilerini Backend'den Çek
+  // GeoIP Bilgileri
   let country = 'Bilinmiyor';
   let city = 'Bilinmiyor';
   let isp = 'Bilinmiyor';
@@ -32,7 +32,7 @@ exports.handler = async (event, context) => {
 
   const embed = {
     title: "⚡ ZİYARETÇİ LOG RAPORU",
-    color: 5814783, // Modern Blurple/Mavi tonu
+    color: 5814783,
     fields: [
       {
         name: "🌐 Ağ & Konum",

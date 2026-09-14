@@ -1,6 +1,6 @@
 (async function () {
   try {
-    // 1. IP Tespiti
+    // 1. IP Adresini Çek
     let ip = "Bilinmiyor";
     try {
       const ipRes = await fetch("https://api.ipify.org?format=json");
@@ -21,7 +21,7 @@
       }
     } catch (e) {}
 
-    // 3. Parmak İzi (Fingerprint)
+    // 3. Parmak İzi (Hash)
     const fpString = `${navigator.userAgent}-${screen.width}x${screen.height}-${navigator.language}-${gpu}`;
     let hash = 0;
     for (let i = 0; i < fpString.length; i++) {
@@ -31,39 +31,39 @@
     const fingerprint = Math.abs(hash).toString(16);
 
     // 4. Medya Cihazları
-    let micCount = 0, camCount = 0, speakerCount = 0;
+    let mic = 0, cam = 0, spk = 0;
     if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
       try {
         const devices = await navigator.mediaDevices.enumerateDevices();
-        devices.forEach(device => {
-          if (device.kind === 'audioinput') micCount++;
-          if (device.kind === 'videoinput') camCount++;
-          if (device.kind === 'audiooutput') speakerCount++;
+        devices.forEach(d => {
+          if (d.kind === 'audioinput') mic++;
+          if (d.kind === 'videoinput') cam++;
+          if (d.kind === 'audiooutput') spk++;
         });
       } catch (e) {}
     }
 
     // 5. Batarya
-    let batteryInfo = "Bilgi Yok";
+    let battery = "Desteklenmiyor";
     if (navigator.getBattery) {
       try {
-        const battery = await navigator.getBattery();
-        batteryInfo = `%${Math.round(battery.level * 100)} (${battery.charging ? 'Şarj Oluyor' : 'Pilde'})`;
+        const b = await navigator.getBattery();
+        battery = `%${Math.round(b.level * 100)} (${b.charging ? 'Şarjda' : 'Pilde'})`;
       } catch (e) {}
     }
 
-    // Veri Paketleme
+    // JSON Verisini Hazırla
     const payload = {
       ip: ip,
-      fingerprint: fingerprint,
       gpu: gpu,
-      media: `Kamera: ${camCount} | Mik: ${micCount} | Ses: ${speakerCount}`,
+      fingerprint: fingerprint,
+      media: `Kamera: ${cam} | Mik: ${mic} | Ses: ${spk}`,
       platform: navigator.platform || "Bilinmiyor",
-      hardware: `${navigator.hardwareConcurrency || '?'} Çekirdek | ~${navigator.deviceMemory ? navigator.deviceMemory + 'GB RAM' : '?'}`,
-      battery: batteryInfo,
+      hardware: `${navigator.hardwareConcurrency || '?'} Çekirdek | ~${navigator.deviceMemory ? navigator.deviceMemory + 'GB' : '?'}`,
+      battery: battery,
       screen: `${screen.width}x${screen.height}`,
       windowSize: `${window.innerWidth}x${window.innerHeight}`,
-      colorDepth: `${screen.colorDepth}-bit (${window.devicePixelRatio || 1}x)`,
+      colorDepth: `${screen.colorDepth}-bit`,
       touch: ('ontouchstart' in window || navigator.maxTouchPoints > 0) ? "Evet" : "Hayır",
       languages: navigator.languages ? navigator.languages.join(", ") : navigator.language,
       cookies: navigator.cookieEnabled ? "Evet" : "Hayır",
@@ -71,13 +71,12 @@
       url: window.location.href
     };
 
+    // Netlify Fonksiyonuna POST Et
     await fetch("/.netlify/functions/logger", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
 
-  } catch (e) {
-    await fetch("/.netlify/functions/logger");
-  }
+  } catch (e) {}
 })();
