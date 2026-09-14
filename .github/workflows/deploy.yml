@@ -29,5 +29,7 @@ jobs:
           key: ${{ secrets.VDS_SSH_KEY }}
           script: |
             cd /var/www/html
+            rm -rf node_modules
             npm ci --omit=dev
+            node -e "const p=require('./node_modules/discord.js/package.json'); if (p.version !== '14.27.0' || p.main !== './src/index.js') process.exit(1)"
             sudo systemctl restart cloxin-bot.service

@@ -37,7 +37,7 @@ Discord Developer Portal'da botu sunucuya `applications.commands` ve `bot` scope
 /site mode:Acik
 ```
 
-## 2. Nginx
+## 2. Nginx 
 
 `nginx.conf.example` içeriğini site domainine göre `/etc/nginx/sites-available/cloxin` olarak kopyala. `server_name` değerini değiştirip etkinleştir:
 
@@ -54,3 +54,20 @@ Nginx statik siteyi sunar, `/api/status` isteklerini bot/API servisine aktarır.
 GitHub Actions için `VDS_HOST`, `VDS_USER` ve `VDS_SSH_KEY` secret'ları tanımlı olmalı. `main` branch'e push edildiğinde dosyalar kopyalanır, bağımlılıklar kurulur ve `cloxin-bot.service` yeniden başlatılır.
 
 `/etc/cloxin/cloxin.env` sunucuda tutulur; repoya eklenmez.
+
+## Paket hatasi onarimi
+
+`Cannot find package .../node_modules/discord.js/index.js` görürsen paket kurulumu bozulmustur. Proje klasöründe su komutlari calistir:
+
+```bash
+cd /var/www/html
+rm -rf node_modules
+npm cache verify
+npm ci --omit=dev
+node -e "const p=require('./node_modules/discord.js/package.json'); console.log(p.version, p.main)"
+sudo systemctl reset-failed cloxin-bot.service
+sudo systemctl restart cloxin-bot.service
+sudo systemctl status cloxin-bot.service --no-pager
+```
+
+Beklenen paket girisi `14.27.0` ve `./src/index.js` olmalidir. `package-lock.json` dosyasini silme; deploy bu dosyayi kullanarak ayni sürümü kurar.
