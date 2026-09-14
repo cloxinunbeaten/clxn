@@ -47,17 +47,51 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-Nginx statik siteyi sunar, `/api/status` isteklerini bot/API servisine aktarır.
+Nginx, API ve tüm site isteklerini Node servisine aktarır. Node modu sunucu tarafında kontrol ettiği için JavaScript kapalı olsa bile bakım/kapalı ekranı aşılamaz.
 
-Sunucuda gerçek domain konfigurasyonunu kontrol etmek için:
+Cloudflare HTTPS kullandigi için `/api/status` location'i mutlaka `443 ssl` ile gelen aktif server blogunda da bulunmali. Certbot genellikle 80 ve 443 bloglarini ayri olusturur. Aktif konfigurasyonlari bul:
 
 ```bash
-sudo nginx -T | grep -A8 -B2 'location = /api/status'
-curl -i http://127.0.0.1:8787/api/status
-curl -i https://alan-adin.com/api/status
+sudo nginx -T | grep -n -A25 -B5 'server_name.*cloxinunbeaten.xyz'
+sudo nginx -T | grep -n -A8 -B2 'location = /api/status'
 ```
 
-Son iki komut da `200` ve `mode` içeren JSON dönmelidir. Domain üzerinden `404`, HTML veya `502` dönüyorsa `/etc/nginx/sites-available/cloxin` içindeki `server_name` ve `/api/status` proxy'sini düzeltip `sudo nginx -t && sudo systemctl reload nginx` çalıştır.
+HTTPS server blogunda (`listen 443 ssl` olan blog) su location yoksa ekle:
+
+```nginx
+location = /api/status {
+	proxy_pass http://127.0.0.1:8787;
+	proxy_http_version 1.1;
+	proxy_set_header Host $host;
+	proxy_set_header X-Real-IP $remote_addr;
+	proxy_no_cache 1;
+}
+```
+
+`location /` blogu da statik dosya yerine Node'a proxy yapmali:
+
+```nginx
+location / {
+	proxy_pass http://127.0.0.1:8787;
+	proxy_http_version 1.1;
+	proxy_set_header Host $host;
+	proxy_set_header X-Real-IP $remote_addr;
+	proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+	proxy_set_header X-Forwarded-Proto $scheme;
+	proxy_no_cache 1;
+}
+```
+
+Sonra konfigurasyonu kontrol edip yenile:
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+curl -i http://127.0.0.1:8787/api/status
+curl -i https://cloxinunbeaten.xyz/api/status
+```
+
+Son iki komut da `200` ve `mode` içeren JSON dönmelidir. Public domain hâlâ `404` dönüyorsa istek başka bir Nginx server bloguna gidiyordur; `nginx -T` çıktısındaki `server_name` ve `listen 443 ssl` blogunu düzenle.
 
 ## 3. Otomatik deploy
 

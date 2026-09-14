@@ -8,6 +8,16 @@ const root = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.PORT || 8787);
 const stateFile = process.env.SITE_STATE_FILE || path.join(root, 'site-state.json');
 const allowedGuild = process.env.DISCORD_GUILD_ID || '';
+const publicRoot = root;
+const forbiddenPublicFiles = new Set([
+  '.env',
+  'server.js',
+  'package.json',
+  'package-lock.json',
+  'site-state.json',
+  'cloxin-bot.service.example',
+  'nginx.conf.example'
+]);
 
 const defaults = {
   mode: 'live',
@@ -28,8 +38,56 @@ async function writeState(nextState) {
   await fs.writeFile(stateFile, `${JSON.stringify(nextState, null, 2)}\n`, 'utf8');
 }
 
+function sendFile(response, filePath, contentType, cacheControl = 'no-cache') {
+  return fs.readFile(filePath).then(contents => {
+    response.writeHead(200, {
+      'Content-Type': contentType,
+      'Cache-Control': cacheControl
+    });
+    response.end(contents);
+  });
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>'"]/g, character => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    "'": '&#39;',
+    '"': '&quot;'
+  }[character]));
+}
+
+async function sendStatusPage(response, page, state) {
+  let html = await fs.readFile(path.join(publicRoot, page), 'utf8');
+  html = html.replace(/(<h1[^>]*id="title"[^>]*>)[\s\S]*?(<\/h1>)/, `$1${escapeHtml(state.title)}$2`);
+  html = html.replace(/(<p[^>]*id="message"[^>]*>)[\s\S]*?(<\/p>)/, `$1${escapeHtml(state.message)}$2`);
+  response.writeHead(200, {
+    'Content-Type': 'text/html; charset=utf-8',
+    'Cache-Control': 'no-store'
+  });
+  response.end(html);
+}
+
+function contentTypeFor(filePath) {
+  const types = {
+    '.html': 'text/html; charset=utf-8',
+    '.css': 'text/css; charset=utf-8',
+    '.js': 'text/javascript; charset=utf-8',
+    '.mp3': 'audio/mpeg',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.webp': 'image/webp',
+    '.svg': 'image/svg+xml'
+  };
+  return types[path.extname(filePath).toLowerCase()] || 'application/octet-stream';
+}
+
 const server = http.createServer(async (request, response) => {
-  if (request.method === 'GET' && request.url === '/api/status') {
+  const requestUrl = new URL(request.url, 'http://localhost');
+
+  if (request.method === 'GET' && requestUrl.pathname === '/api/status') {
     const state = await readState();
     response.writeHead(200, {
       'Content-Type': 'application/json; charset=utf-8',
@@ -44,6 +102,30 @@ const server = http.createServer(async (request, response) => {
     response.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
     response.end('ok');
     return;
+  }
+
+  if (request.method === 'GET') {
+    const state = await readState();
+    const forcedPage = state.mode === 'closed' ? 'closed.html' :
+      state.mode === 'maintenance' ? 'maintenance.html' : null;
+    const requestedPath = requestUrl.pathname;
+    const relativePath = forcedPage || (requestedPath === '/' ? 'index.html' : requestedPath.slice(1));
+    const filePath = path.resolve(publicRoot, relativePath);
+
+    if (filePath.startsWith(`${publicRoot}${path.sep}`) && !forbiddenPublicFiles.has(relativePath)) {
+      try {
+        if (forcedPage) {
+          await sendStatusPage(response, forcedPage, state);
+          return;
+        }
+        await sendFile(response, filePath, contentTypeFor(filePath), forcedPage ? 'no-store' : 'no-cache');
+        return;
+      } catch {
+        response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+        response.end('Not found');
+        return;
+      }
+    }
   }
 
   response.writeHead(404);
