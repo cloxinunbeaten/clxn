@@ -926,8 +926,6 @@ setInterval(() => {
         if(data.title) query.set('title', data.title);
         if(data.message) query.set('message', data.message);
         window.location.replace(`${page}${query.toString() ? `?${query}` : ''}`);
-      } else if(data && data.profileId && data.profileId !== DISCORD_ID){
-        window.location.reload();
       }
     })
     .catch(() => {});
