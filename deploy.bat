@@ -15,6 +15,6 @@ git push origin main --force
 
 echo.
 echo ====================================
-echo Basariyla yuklendi ve Netlify'a gonderildi!
+echo Basariyla yuklendi ve VPS deploy akisi tetiklendi!
 echo ====================================
 pause

@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Site kapalı</title>
+<style>
+:root{color-scheme:dark;--bg:#09090a;--panel:#141416;--line:#303136;--text:#f4f5f7;--muted:#92959c;--silver:#d9dee6}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:radial-gradient(ellipse at 50% 0,#25262a 0,transparent 48%),var(--bg);color:var(--text);font-family:Inter,"Segoe UI",sans-serif}.panel{width:min(100%,420px);padding:44px 30px 38px;text-align:center;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:22px;box-shadow:0 30px 60px #000b;backdrop-filter:blur(18px)}.icon{width:66px;height:66px;margin:0 auto 22px;display:grid;place-items:center;border:1px solid var(--line);border-radius:50%;color:var(--silver);font-size:25px}.eyebrow{margin:0 0 12px;color:var(--muted);font:12px Consolas,monospace;letter-spacing:.12em;text-transform:uppercase}.title{margin:0 0 12px;font-size:24px}.message{margin:0;color:var(--muted);font-size:14px;line-height:1.65}</style>
+</head><body><main class="panel"><div class="icon" aria-hidden="true">×</div><p class="eyebrow">cloxin / erişim kapalı</p><h1 class="title" id="title">Site kapalı</h1><p class="message" id="message">Site şu anda erişime kapalı.</p></main><script>const p=new URLSearchParams(location.search);if(p.get('title'))document.querySelector('#title').textContent=p.get('title');if(p.get('message'))document.querySelector('#message').textContent=p.get('message');</script></body></html>

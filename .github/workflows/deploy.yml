@@ -20,3 +20,14 @@ jobs:
           source: "."
           target: "/var/www/html"
           rm: false
+
+      - name: Install bot and restart service
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VDS_HOST }}
+          username: ${{ secrets.VDS_USER }}
+          key: ${{ secrets.VDS_SSH_KEY }}
+          script: |
+            cd /var/www/html
+            npm ci --omit=dev
+            sudo systemctl restart cloxin-bot.service

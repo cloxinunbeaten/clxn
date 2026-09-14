@@ -868,23 +868,9 @@ function setupMusicAndEnter(){
 }
 
 /* ============================================================
-   BAKIM MODU / GEÇİCİ KAPATMA
-   Sayfa açılır açılmaz /.netlify/functions/status uç noktasından
-   site durumu (SITE_MODE ortam değişkeni) okunur. Ziyaretçiye ait
-   hiçbir bilgi gönderilmez veya kaydedilmez — sadece site sahibinin
-   Netlify'da tanımladığı moda bakılır.
-   ============================================================ */
-function showMaintenanceScreen(title, message){
-  document.getElementById('enterScreen').remove();
-  document.querySelector('.card').style.display = 'none';
-  document.getElementById('musicControl').style.display = 'none';
-  document.getElementById('bgMusic').remove();
-
-  if(title) document.getElementById('maintenanceTitle').textContent = title;
-  if(message) document.getElementById('maintenanceText').textContent = message;
-  document.getElementById('maintenanceScreen').classList.add('show');
-}
-
+  BAKIM MODU / GEÇİCİ KAPATMA
+  Site durumu VPS üzerindeki /api/status uç noktasından okunur.
+  ============================================================ */
 function startSite(){
   renderSocials();
   createParticles();
@@ -894,24 +880,21 @@ function startSite(){
 }
 
 async function boot(){
-  let mode = 'live', title = null, message = null;
   try{
-    const res = await fetch('/.netlify/functions/status', { cache: 'no-store' });
+    const res = await fetch('/api/status', { cache: 'no-store' });
     if(res.ok){
       const data = await res.json();
-      mode = data.mode || 'live';
-      title = data.title || null;
-      message = data.message || null;
+      if(data.mode === 'maintenance' || data.mode === 'closed'){
+        const page = data.mode === 'closed' ? 'closed.html' : 'maintenance.html';
+        const query = new URLSearchParams();
+        if(data.title) query.set('title', data.title);
+        if(data.message) query.set('message', data.message);
+        window.location.replace(`${page}${query.toString() ? `?${query}` : ''}`);
+        return;
+      }
     }
   }catch(e){
-    // Durum servisine ulaşılamazsa site normal şekilde açılır (fail-open):
-    // bir ağ/servis sorunu sitenin tamamen kapanmasına yol açmaz.
-    mode = 'live';
-  }
-
-  if(mode === 'maintenance' || mode === 'stopped'){
-    showMaintenanceScreen(title, message);
-    return;
+    // Durum servisi geçici olarak erişilemezse ana site açılır.
   }
 
   startSite();
