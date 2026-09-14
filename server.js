@@ -18,11 +18,14 @@ const forbiddenPublicFiles = new Set([
   'cloxin-bot.service.example',
   'nginx.conf.example'
 ]);
+const activeVisitors = new Map();
+const visitorTimeoutMs = 45_000;
 
 const defaults = {
   mode: 'live',
   title: 'Bakımdayız',
-  message: 'Sitede planlı bir bakım çalışması yürütüyoruz. Kısa süre içinde tekrar buradayız.'
+  message: 'Sitede planlı bir bakım çalışması yürütüyoruz. Kısa süre içinde tekrar buradayız.',
+  profileId: '1368780659484528702'
 };
 
 async function readState() {
@@ -69,6 +72,16 @@ async function sendStatusPage(response, page, state) {
   response.end(html);
 }
 
+async function sendPublicPage(response, filePath, state) {
+  let html = await fs.readFile(filePath, 'utf8');
+  html = html.replaceAll('__DISCORD_ID__', escapeHtml(state.profileId));
+  response.writeHead(200, {
+    'Content-Type': 'text/html; charset=utf-8',
+    'Cache-Control': 'no-store'
+  });
+  response.end(html);
+}
+
 function contentTypeFor(filePath) {
   const types = {
     '.html': 'text/html; charset=utf-8',
@@ -94,7 +107,23 @@ const server = http.createServer(async (request, response) => {
       'Cache-Control': 'no-store',
       'Access-Control-Allow-Origin': '*'
     });
-    response.end(JSON.stringify(state));
+    response.end(JSON.stringify({ ...state, onlineVisitors: activeVisitors.size }));
+    return;
+  }
+
+  if (request.method === 'GET' && requestUrl.pathname === '/api/heartbeat') {
+    const visitorId = requestUrl.searchParams.get('id') ||
+      `${request.headers['x-forwarded-for'] || request.socket.remoteAddress}:${request.headers['user-agent'] || ''}`;
+    activeVisitors.set(visitorId, Date.now());
+    const cutoff = Date.now() - visitorTimeoutMs;
+    for (const [id, lastSeen] of activeVisitors) {
+      if (lastSeen < cutoff) activeVisitors.delete(id);
+    }
+    response.writeHead(200, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store'
+    });
+    response.end(JSON.stringify({ onlineVisitors: activeVisitors.size }));
     return;
   }
 
@@ -118,7 +147,11 @@ const server = http.createServer(async (request, response) => {
           await sendStatusPage(response, forcedPage, state);
           return;
         }
-        await sendFile(response, filePath, contentTypeFor(filePath), forcedPage ? 'no-store' : 'no-cache');
+        if (relativePath === 'index.html') {
+          await sendPublicPage(response, filePath, state);
+        } else {
+          await sendFile(response, filePath, contentTypeFor(filePath), 'no-cache');
+        }
         return;
       } catch {
         response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
@@ -151,13 +184,21 @@ const command = new SlashCommandBuilder()
     ))
   .addStringOption(option => option.setName('title').setDescription('Baslik').setMaxLength(80))
   .addStringOption(option => option.setName('message').setDescription('Ziyaretci mesaji').setMaxLength(240));
+const visitorCommand = new SlashCommandBuilder().setName('ziyaretci').setDescription('Aktif ziyaretci sayisini gosterir');
+const statusCommand = new SlashCommandBuilder().setName('durum').setDescription('Site durumunu gosterir');
+const pingCommand = new SlashCommandBuilder().setName('ping').setDescription('Site API gecikmesini olcer');
+const profileCommand = new SlashCommandBuilder()
+  .setName('profil')
+  .setDescription('Profil kartindaki Discord kullanicisini degistirir')
+  .addStringOption(option => option.setName('id').setDescription('Discord kullanici ID').setRequired(true).setMinLength(17).setMaxLength(20));
+const commands = [command, visitorCommand, statusCommand, pingCommand, profileCommand];
 
 client.once('clientReady', async readyClient => {
   try {
     if (allowedGuild) {
-      await readyClient.application.commands.set([command], allowedGuild);
+      await readyClient.application.commands.set(commands, allowedGuild);
     } else {
-      await readyClient.application.commands.set([command]);
+      await readyClient.application.commands.set(commands);
     }
     console.log(`Discord bot hazir: ${readyClient.user.tag}`);
   } catch (error) {
@@ -166,7 +207,7 @@ client.once('clientReady', async readyClient => {
 });
 
 client.on('interactionCreate', async interaction => {
-  if (!interaction.isChatInputCommand() || interaction.commandName !== 'site') return;
+  if (!interaction.isChatInputCommand()) return;
 
   try {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
@@ -177,6 +218,38 @@ client.on('interactionCreate', async interaction => {
       await interaction.editReply('Bu komut icin sunucu yonetici yetkisi gerekiyor.');
       return;
     }
+
+    if (interaction.commandName === 'ziyaretci') {
+      await interaction.editReply(`Aktif ziyaretci: **${activeVisitors.size}**`);
+      return;
+    }
+
+    if (interaction.commandName === 'durum') {
+      const state = await readState();
+      await interaction.editReply(`Mod: **${state.mode}**\nAktif ziyaretci: **${activeVisitors.size}**\nProfil ID: **${state.profileId}**`);
+      return;
+    }
+
+    if (interaction.commandName === 'ping') {
+      const startedAt = Date.now();
+      await fetch(`http://127.0.0.1:${port}/health`);
+      await interaction.editReply(`API yaniti: **${Date.now() - startedAt} ms**\nDiscord websocket: **${client.ws.ping} ms**`);
+      return;
+    }
+
+    if (interaction.commandName === 'profil') {
+      const profileId = interaction.options.getString('id', true);
+      if (!/^\d{17,20}$/.test(profileId)) {
+        await interaction.editReply('Gecerli bir Discord kullanici ID gir.');
+        return;
+      }
+      const state = await readState();
+      await writeState({ ...state, profileId });
+      await interaction.editReply(`Profil ID **${profileId}** olarak degistirildi.`);
+      return;
+    }
+
+    if (interaction.commandName !== 'site') return;
 
     const mode = interaction.options.getString('mode', true);
     const current = await readState();

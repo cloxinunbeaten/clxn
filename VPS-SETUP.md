@@ -37,6 +37,17 @@ Discord Developer Portal'da botu sunucuya `applications.commands` ve `bot` scope
 /site mode:Acik
 ```
 
+Ek yonetim komutlari:
+
+```text
+/ziyaretci
+/durum
+/ping
+/profil id:123456789012345678
+```
+
+`/ziyaretci` son 45 saniyede heartbeat gönderen aktif ziyaretçileri sayar. JavaScript kapali ziyaretçiler heartbeat gönderemeyecegi için bu sayiya dahil edilmez. `/profil` komutu profil kartinin ve Lanyard presence sorgusunun kullanacagi Discord kullanici ID'sini degistirir; acik sayfalar degisikligi en fazla 10 saniye icinde alir.
+
 ## 2. Nginx 
 
 `nginx.conf.example` içeriğini site domainine göre `/etc/nginx/sites-available/cloxin` olarak kopyala. `server_name` değerini değiştirip etkinleştir:
