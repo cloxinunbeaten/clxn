@@ -71,35 +71,59 @@ const command = new SlashCommandBuilder()
   .addStringOption(option => option.setName('message').setDescription('Ziyaretci mesaji').setMaxLength(240));
 
 client.once('ready', async readyClient => {
-  if (allowedGuild) {
-    await readyClient.application.commands.set([command], allowedGuild);
-  } else {
-    await readyClient.application.commands.set([command]);
+  try {
+    if (allowedGuild) {
+      await readyClient.application.commands.set([command], allowedGuild);
+    } else {
+      await readyClient.application.commands.set([command]);
+    }
+    console.log(`Discord bot hazir: ${readyClient.user.tag}`);
+  } catch (error) {
+    console.error('Slash komutu kaydedilemedi:', error);
   }
-  console.log(`Discord bot hazir: ${readyClient.user.tag}`);
 });
 
 client.on('interactionCreate', async interaction => {
   if (!interaction.isChatInputCommand() || interaction.commandName !== 'site') return;
 
-  const isAdmin = interaction.memberPermissions?.has(PermissionFlagsBits.Administrator) ||
-    interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild);
-  if (!isAdmin) {
-    await interaction.reply({ content: 'Bu komut icin sunucu yonetici yetkisi gerekiyor.', ephemeral: true });
-    return;
-  }
+  try {
+    await interaction.deferReply({ ephemeral: true });
 
-  const mode = interaction.options.getString('mode', true);
-  const current = await readState();
-  const nextState = {
-    ...current,
-    mode,
-    title: interaction.options.getString('title') || (mode === 'closed' ? 'Site kapali' : defaults.title),
-    message: interaction.options.getString('message') || (mode === 'closed' ? 'Site su anda erisime kapali.' : defaults.message)
-  };
-  await writeState(nextState);
-  await interaction.reply(`Site modu **${mode}** olarak ayarlandi.`);
+    const isAdmin = interaction.memberPermissions?.has(PermissionFlagsBits.Administrator) ||
+      interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild);
+    if (!isAdmin) {
+      await interaction.editReply('Bu komut icin sunucu yonetici yetkisi gerekiyor.');
+      return;
+    }
+
+    const mode = interaction.options.getString('mode', true);
+    const current = await readState();
+    const nextState = {
+      ...current,
+      mode,
+      title: interaction.options.getString('title') || (mode === 'closed' ? 'Site kapali' : defaults.title),
+      message: interaction.options.getString('message') || (mode === 'closed' ? 'Site su anda erisime kapali.' : defaults.message)
+    };
+    await writeState(nextState);
+    await interaction.editReply(`Site modu **${mode}** olarak ayarlandi.`);
+  } catch (error) {
+    console.error('Slash komutu islenemedi:', error);
+    if (interaction.deferred || interaction.replied) {
+      await interaction.editReply('Komut islenirken bir sunucu hatasi olustu. Journal logunu kontrol et.').catch(replyError => {
+        console.error('Hata mesaji gonderilemedi:', replyError);
+      });
+    } else {
+      await interaction.reply({ content: 'Komut islenirken bir sunucu hatasi olustu.', ephemeral: true }).catch(replyError => {
+        console.error('Hata mesaji gonderilemedi:', replyError);
+      });
+    }
+  }
 });
+
+client.on('error', error => console.error('Discord client hatasi:', error));
+client.on('shardError', error => console.error('Discord gateway hatasi:', error));
+process.on('unhandledRejection', error => console.error('Yakalanmamis Promise hatasi:', error));
+process.on('uncaughtException', error => console.error('Yakalanmamis process hatasi:', error));
 
 if (!process.env.DISCORD_TOKEN) {
   console.error('DISCORD_TOKEN tanimli degil. Bot baslatilmadi.');
