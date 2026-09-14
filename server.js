@@ -2,7 +2,7 @@ import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Client, GatewayIntentBits, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
+import { Client, GatewayIntentBits, MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.PORT || 8787);
@@ -70,7 +70,7 @@ const command = new SlashCommandBuilder()
   .addStringOption(option => option.setName('title').setDescription('Baslik').setMaxLength(80))
   .addStringOption(option => option.setName('message').setDescription('Ziyaretci mesaji').setMaxLength(240));
 
-client.once('ready', async readyClient => {
+client.once('clientReady', async readyClient => {
   try {
     if (allowedGuild) {
       await readyClient.application.commands.set([command], allowedGuild);
@@ -87,7 +87,7 @@ client.on('interactionCreate', async interaction => {
   if (!interaction.isChatInputCommand() || interaction.commandName !== 'site') return;
 
   try {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const isAdmin = interaction.memberPermissions?.has(PermissionFlagsBits.Administrator) ||
       interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild);
@@ -113,7 +113,7 @@ client.on('interactionCreate', async interaction => {
         console.error('Hata mesaji gonderilemedi:', replyError);
       });
     } else {
-      await interaction.reply({ content: 'Komut islenirken bir sunucu hatasi olustu.', ephemeral: true }).catch(replyError => {
+      await interaction.reply({ content: 'Komut islenirken bir sunucu hatasi olustu.', flags: MessageFlags.Ephemeral }).catch(replyError => {
         console.error('Hata mesaji gonderilemedi:', replyError);
       });
     }
