@@ -1,4 +1,4 @@
-name: Deploy to My VPS
+name: Deploy to My VDS
 
 on:
   push:
@@ -11,12 +11,12 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Copy files to VPS via SCP
+      - name: Copy files to VDS via SCP
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USERNAME }}
-          key: ${{ secrets.VPS_SSH_KEY }}
+          host: ${{ secrets.VDS_HOST }}
+          username: ${{ secrets.VDS_USERNAME }}
+          key: ${{ secrets.VDS_SSH_KEY }}
           source: "."
           target: "${{ secrets.WEB_PATH }}"
           rm: false
