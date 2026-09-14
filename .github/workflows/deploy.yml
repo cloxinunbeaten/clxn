@@ -1,4 +1,17 @@
-- name: Copy Files to VDS via SCP
+name: Deploy to VDS
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Copy Files to VDS via SCP
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.VDS_HOST }}
@@ -6,4 +19,4 @@
           key: ${{ secrets.VDS_SSH_KEY }}
           source: "."
           target: "/var/www/html"
-          rm: true # İşte bu ayar her seferinde hedef klasörü sıfırlayıp temiz bir kopya oluşturur
+          rm: true
