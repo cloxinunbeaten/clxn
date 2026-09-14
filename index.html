@@ -477,11 +477,100 @@
   @media (prefers-reduced-motion: reduce){
     .volume-wrap{ transition:opacity 0.2s ease; }
   }
+
+  /* ===== Bakım Modu / Geçici Kapatma ekranı ===== */
+  .maintenance-screen{
+    position:fixed;
+    inset:0;
+    z-index:999;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+    background:var(--bg-0);
+  }
+
+  .maintenance-screen.show{ display:flex; }
+
+  .maintenance-card{
+    position:relative;
+    z-index:1;
+    width:100%;
+    max-width:400px;
+    padding:44px 30px 36px;
+    border-radius:22px;
+    background:var(--glass);
+    border:1px solid var(--glass-border);
+    backdrop-filter:blur(18px);
+    -webkit-backdrop-filter:blur(18px);
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.03),
+      0 30px 60px -20px rgba(0,0,0,0.75),
+      0 0 40px -12px var(--silver-soft);
+    text-align:center;
+  }
+
+  .maintenance-icon{
+    width:64px;
+    height:64px;
+    margin:0 auto 22px;
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:rgba(255,255,255,0.05);
+    border:1px solid var(--glass-border);
+    animation:maint-pulse 2.4s ease-in-out infinite;
+  }
+
+  .maintenance-icon svg{
+    width:28px;
+    height:28px;
+    color:var(--silver);
+  }
+
+  @keyframes maint-pulse{
+    0%,100%{ box-shadow:0 0 0 0 var(--silver-soft); }
+    50%{ box-shadow:0 0 0 12px rgba(217,222,230,0); }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .maintenance-icon{ animation:none; }
+  }
+
+  .maintenance-title{
+    font-family:"Sora","Inter",sans-serif;
+    font-size:20px;
+    font-weight:600;
+    letter-spacing:-0.01em;
+    margin:0 0 10px;
+    color:var(--text-0);
+  }
+
+  .maintenance-text{
+    font-size:14px;
+    line-height:1.6;
+    color:var(--text-1);
+    margin:0;
+  }
 </style>
 </head>
 <body>
 
 <div class="field" id="field" aria-hidden="true"></div>
+
+<!-- Bakım/Kapalı modunda gösterilen ekran. Normal durumda gizli kalır. -->
+<div class="maintenance-screen" id="maintenanceScreen">
+  <div class="maintenance-card">
+    <div class="maintenance-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+      </svg>
+    </div>
+    <h1 class="maintenance-title" id="maintenanceTitle">Bakımdayız</h1>
+    <p class="maintenance-text" id="maintenanceText">Sitede planlı bir bakım çalışması yürütüyoruz. Kısa süre içinde tekrar buradayız.</p>
+  </div>
+</div>
 
 <audio id="bgMusic" src="music.mp3" loop preload="auto"></audio>
 
@@ -598,9 +687,8 @@ function renderSocials(){
     wrap.appendChild(a);
   });
 }
-renderSocials();
 
-(function(){
+function createParticles(){
   const field = document.getElementById('field');
   const N = 20;
   for(let i=0;i<N;i++){
@@ -616,7 +704,7 @@ renderSocials();
     m.style.setProperty('--drift', drift);
     field.appendChild(m);
   }
-})();
+}
 
 const DISCORD_ID = '1368780659484528702';
 const STATUS_LABEL = { online:'Çevrimiçi', idle:'Idle', dnd:'Do Not Disturb', offline:'Offline' };
@@ -724,63 +812,112 @@ async function loadPresence(){
   }
 }
 
-const enterScreen = document.getElementById('enterScreen');
-const bgMusic = document.getElementById('bgMusic');
-const musicControl = document.getElementById('musicControl');
-const musicToggle = document.getElementById('musicToggle');
-const volumeSlider = document.getElementById('volumeSlider');
-let musicStarted = false;
+function setupMusicAndEnter(){
+  const enterScreen = document.getElementById('enterScreen');
+  const bgMusic = document.getElementById('bgMusic');
+  const musicControl = document.getElementById('musicControl');
+  const musicToggle = document.getElementById('musicToggle');
+  const volumeSlider = document.getElementById('volumeSlider');
+  let musicStarted = false;
 
-bgMusic.volume = Number(volumeSlider.value) / 100;
+  bgMusic.volume = Number(volumeSlider.value) / 100;
 
-function updateSliderFill(){
-  volumeSlider.style.setProperty('--vol', volumeSlider.value + '%');
-}
-updateSliderFill();
-
-// Tıkla ve gir ekranı — tarayıcılar kullanıcı etkileşimi olmadan
-// otomatik ses çalmasına izin vermiyor, bu yüzden müzik bu tıklamayla başlıyor.
-enterScreen.addEventListener('click', () => {
-  if(!musicStarted){
-    bgMusic.play().catch(()=>{});
-    musicStarted = true;
+  function updateSliderFill(){
+    volumeSlider.style.setProperty('--vol', volumeSlider.value + '%');
   }
-  enterScreen.classList.add('hide');
-  musicToggle.classList.add('show', 'playing');
-  musicControl.classList.add('expanded');
-  setTimeout(() => enterScreen.remove(), 700);
-});
-
-// Düğme: sesi tamamen kapat/aç (mute toggle)
-musicToggle.addEventListener('click', () => {
-  bgMusic.muted = !bgMusic.muted;
-  musicToggle.classList.toggle('muted', bgMusic.muted);
-  musicToggle.classList.toggle('playing', !bgMusic.muted);
-});
-
-// Kaydırıcı: ses seviyesini ayarla (0 -> otomatik sessize alır)
-volumeSlider.addEventListener('input', () => {
-  const vol = Number(volumeSlider.value) / 100;
-  bgMusic.volume = vol;
   updateSliderFill();
 
-  if(vol === 0){
-    bgMusic.muted = true;
-    musicToggle.classList.add('muted');
-    musicToggle.classList.remove('playing');
-  } else {
-    if(bgMusic.muted){
-      bgMusic.muted = false;
+  // Tıkla ve gir ekranı — tarayıcılar kullanıcı etkileşimi olmadan
+  // otomatik ses çalmasına izin vermiyor, bu yüzden müzik bu tıklamayla başlıyor.
+  enterScreen.addEventListener('click', () => {
+    if(!musicStarted){
+      bgMusic.play().catch(()=>{});
+      musicStarted = true;
     }
-    musicToggle.classList.remove('muted');
-    musicToggle.classList.add('playing');
+    enterScreen.classList.add('hide');
+    musicToggle.classList.add('show', 'playing');
+    musicControl.classList.add('expanded');
+    setTimeout(() => enterScreen.remove(), 700);
+  });
+
+  // Düğme: sesi tamamen kapat/aç (mute toggle)
+  musicToggle.addEventListener('click', () => {
+    bgMusic.muted = !bgMusic.muted;
+    musicToggle.classList.toggle('muted', bgMusic.muted);
+    musicToggle.classList.toggle('playing', !bgMusic.muted);
+  });
+
+  // Kaydırıcı: ses seviyesini ayarla (0 -> otomatik sessize alır)
+  volumeSlider.addEventListener('input', () => {
+    const vol = Number(volumeSlider.value) / 100;
+    bgMusic.volume = vol;
+    updateSliderFill();
+
+    if(vol === 0){
+      bgMusic.muted = true;
+      musicToggle.classList.add('muted');
+      musicToggle.classList.remove('playing');
+    } else {
+      if(bgMusic.muted){
+        bgMusic.muted = false;
+      }
+      musicToggle.classList.remove('muted');
+      musicToggle.classList.add('playing');
+    }
+  });
+}
+
+/* ============================================================
+   BAKIM MODU / GEÇİCİ KAPATMA
+   Sayfa açılır açılmaz /.netlify/functions/status uç noktasından
+   site durumu (SITE_MODE ortam değişkeni) okunur. Ziyaretçiye ait
+   hiçbir bilgi gönderilmez veya kaydedilmez — sadece site sahibinin
+   Netlify'da tanımladığı moda bakılır.
+   ============================================================ */
+function showMaintenanceScreen(title, message){
+  document.getElementById('enterScreen').remove();
+  document.querySelector('.card').style.display = 'none';
+  document.getElementById('musicControl').style.display = 'none';
+  document.getElementById('bgMusic').remove();
+
+  if(title) document.getElementById('maintenanceTitle').textContent = title;
+  if(message) document.getElementById('maintenanceText').textContent = message;
+  document.getElementById('maintenanceScreen').classList.add('show');
+}
+
+function startSite(){
+  renderSocials();
+  createParticles();
+  setupMusicAndEnter();
+  loadPresence();
+  setInterval(loadPresence, 20000);
+}
+
+async function boot(){
+  let mode = 'live', title = null, message = null;
+  try{
+    const res = await fetch('/.netlify/functions/status', { cache: 'no-store' });
+    if(res.ok){
+      const data = await res.json();
+      mode = data.mode || 'live';
+      title = data.title || null;
+      message = data.message || null;
+    }
+  }catch(e){
+    // Durum servisine ulaşılamazsa site normal şekilde açılır (fail-open):
+    // bir ağ/servis sorunu sitenin tamamen kapanmasına yol açmaz.
+    mode = 'live';
   }
-});
 
-loadPresence();
-setInterval(loadPresence, 20000);
+  if(mode === 'maintenance' || mode === 'stopped'){
+    showMaintenanceScreen(title, message);
+    return;
+  }
+
+  startSite();
+}
+
+boot();
 </script>
-
-<script src="js/tracker.js?v=2"></script>
 </body>
 </html>
