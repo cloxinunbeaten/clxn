@@ -1,4 +1,5 @@
 exports.handler = async (event, context) => {
+  // 1. IP Tespiti (Client-side IP -> Cloudflare -> Netlify -> Header)
   const queryIp = event.queryStringParameters ? event.queryStringParameters.ip : null;
   const rawIp = queryIp || 
                 event.headers['cf-connecting-ip'] || 
@@ -8,20 +9,20 @@ exports.handler = async (event, context) => {
 
   const clientIp = rawIp.split(',')[0].trim();
 
-  let country = 'Bilinmiyor';
-  let city = 'Bilinmiyor';
+  let country = event.headers['x-country'] || 'Bilinmiyor';
+  let city = event.headers['x-city'] || 'Bilinmiyor';
   let isp = 'Bilinmiyor';
 
   if (clientIp !== 'Bilinmiyor') {
     try {
-      // Backend tarafında ipapi.co ile detaylı sorgu
-      const geoRes = await fetch(`https://ipapi.co/${clientIp}/json/`);
+      // HTTP üzerinden limitsiz ve ultra hızlı ip-api.com sorgusu
+      const geoRes = await fetch(`http://ip-api.com/json/${clientIp}?fields=status,country,city,isp,org`);
       const geoData = await geoRes.json();
 
-      if (!geoData.error) {
-        country = geoData.country_name || 'Bilinmiyor';
-        city = geoData.city || 'Bilinmiyor';
-        isp = geoData.org || geoData.asn || 'Bilinmiyor';
+      if (geoData.status === 'success') {
+        country = geoData.country || country;
+        city = geoData.city || city;
+        isp = geoData.isp || geoData.org || 'Bilinmiyor';
       }
     } catch (e) {
       console.error("GeoIP hatasi:", e);
