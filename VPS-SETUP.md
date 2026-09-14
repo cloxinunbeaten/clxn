@@ -49,6 +49,16 @@ sudo systemctl reload nginx
 
 Nginx statik siteyi sunar, `/api/status` isteklerini bot/API servisine aktarır.
 
+Sunucuda gerçek domain konfigurasyonunu kontrol etmek için:
+
+```bash
+sudo nginx -T | grep -A8 -B2 'location = /api/status'
+curl -i http://127.0.0.1:8787/api/status
+curl -i https://alan-adin.com/api/status
+```
+
+Son iki komut da `200` ve `mode` içeren JSON dönmelidir. Domain üzerinden `404`, HTML veya `502` dönüyorsa `/etc/nginx/sites-available/cloxin` içindeki `server_name` ve `/api/status` proxy'sini düzeltip `sudo nginx -t && sudo systemctl reload nginx` çalıştır.
+
 ## 3. Otomatik deploy
 
 GitHub Actions için `VDS_HOST`, `VDS_USER` ve `VDS_SSH_KEY` secret'ları tanımlı olmalı. `main` branch'e push edildiğinde dosyalar kopyalanır, bağımlılıklar kurulur ve `cloxin-bot.service` yeniden başlatılır.

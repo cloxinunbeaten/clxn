@@ -882,19 +882,19 @@ function startSite(){
 async function boot(){
   try{
     const res = await fetch('/api/status', { cache: 'no-store' });
-    if(res.ok){
-      const data = await res.json();
-      if(data.mode === 'maintenance' || data.mode === 'closed'){
-        const page = data.mode === 'closed' ? 'closed.html' : 'maintenance.html';
-        const query = new URLSearchParams();
-        if(data.title) query.set('title', data.title);
-        if(data.message) query.set('message', data.message);
-        window.location.replace(`${page}${query.toString() ? `?${query}` : ''}`);
-        return;
-      }
+    if(!res.ok) throw new Error(`Status API ${res.status}`);
+    const data = await res.json();
+    if(data.mode === 'maintenance' || data.mode === 'closed'){
+      const page = data.mode === 'closed' ? 'closed.html' : 'maintenance.html';
+      const query = new URLSearchParams();
+      if(data.title) query.set('title', data.title);
+      if(data.message) query.set('message', data.message);
+      window.location.replace(`${page}${query.toString() ? `?${query}` : ''}`);
+      return;
     }
   }catch(e){
-    // Durum servisi geçici olarak erişilemezse ana site açılır.
+    window.location.replace('maintenance.html?title=Site%20durumu%20okunamadi&message=Durum%20sunucusuna%20baglanilamiyor.');
+    return;
   }
 
   startSite();
