@@ -3,10 +3,9 @@
 <head>
 
 <script>
-    // Eğer kullanıcı doğrudan ana site üzerinden bu sayfaya düştüyse status subdomain'ine yönlendir
     if (window.location.hostname === 'cloxinunbeaten.xyz' || window.location.hostname === 'www.cloxinunbeaten.xyz') {
-        const targetPath = window.location.pathname.includes('closed') ? '/closed' : '/';
-        window.location.href = 'https://status.cloxinunbeaten.xyz' + targetPath;
+        const isClosed = window.location.pathname.includes('closed') || document.title.includes('kapali');
+        window.location.href = isClosed ? 'https://status.closed.cloxinunbeaten.xyz' : 'https://status.bakim.cloxinunbeaten.xyz';
     }
 </script>
 
