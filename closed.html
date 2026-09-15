@@ -1,6 +1,15 @@
 <!doctype html>
 <html lang="tr">
 <head>
+
+<script>
+    // Eğer kullanıcı doğrudan ana site üzerinden bu sayfaya düştüyse status subdomain'ine yönlendir
+    if (window.location.hostname === 'cloxinunbeaten.xyz' || window.location.hostname === 'www.cloxinunbeaten.xyz') {
+        const targetPath = window.location.pathname.includes('closed') ? '/closed' : '/';
+        window.location.href = 'https://status.cloxinunbeaten.xyz' + targetPath;
+    }
+</script>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Site kapalı</title>
