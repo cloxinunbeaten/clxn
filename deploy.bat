@@ -1,20 +1,53 @@
 @echo off
-cd /d "C:\Users\Harun\Desktop\cloxin"
+setlocal
+cd /d "C:\Users\harun\Downloads\cloxin"
 
-echo [1/3] Degisiklikler ekleniyor...
+echo ====================================
+echo   GITHUB OTOMATIK YUKLEME ARACI
+echo ====================================
+echo.
+
+echo [1/4] Degisiklikler kontrol ediliyor ve ekleniyor...
 git add .
+REM Uyarıların hata kodu tetiklemesini önlemek için hata seviyesi sıfırlanır
+ver > nul
+echo [BILGI] Degisiklikler eklendi.
+echo.
 
 set /p commit_msg="Commit mesajini girin (Bos birakirsiniz 'auto update' olur): "
 if "%commit_msg%"=="" set commit_msg=auto update
 
-echo [2/3] Commit atiliyor...
+echo.
+echo [2/4] Commit atiliyor... ("%commit_msg%")
 git commit -m "%commit_msg%"
+if %errorlevel% neq 0 (
+    echo [HATA] Commit atilamadi!
+    goto HATA
+)
+echo [BILGI] Commit basariyla olusturuldu.
+echo.
 
-echo [3/3] GitHub'a push ediliyor...
-git push origin main --force
+echo [3/4] GitHub'a push ediliyor...
+git push origin main
+if %errorlevel% neq 0 (
+    echo [HATA] GitHub'a gonderim ^(push^) basarisiz oldu!
+    goto HATA
+)
+echo [BILGI] GitHub'a gonderim basarili!
+echo.
 
+echo ====================================
+echo [4/4] Basariyla yuklendi ve VPS deploy akisi tetiklendi!
+echo ====================================
+goto SON
+
+:HATA
 echo.
 echo ====================================
-echo Basariyla yuklendi ve VPS deploy akisi tetiklendi!
+echo [X] ISLEM BASARISIZ OLDU! Lutfen yukaridaki hata mesajini inceleyin.
 echo ====================================
+
+:SON
+echo.
+endlocal
 pause

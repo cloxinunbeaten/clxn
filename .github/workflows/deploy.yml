@@ -17,7 +17,7 @@ jobs:
           host: ${{ secrets.VDS_HOST }}
           username: ${{ secrets.VDS_USER }}
           key: ${{ secrets.VDS_SSH_KEY }}
-          source: "."
+          source: "index.html,closed.html,maintenance.html,music.mp3,server.js,package.json,package-lock.json"
           target: "/var/www/html"
           rm: false
 

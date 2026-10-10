@@ -11,6 +11,11 @@ ExecStart=/usr/bin/node /var/www/html/server.js
 Restart=always
 RestartSec=5
 User=www-data
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/cloxin
 
 [Install]
 WantedBy=multi-user.target
