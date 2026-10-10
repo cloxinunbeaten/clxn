@@ -1,6 +1,5 @@
 import http from 'node:http';
 import fs from 'node:fs/promises';
-import { createReadStream } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Client, GatewayIntentBits, MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
@@ -10,29 +9,17 @@ const port = Number(process.env.PORT || 8787);
 const stateFile = process.env.SITE_STATE_FILE || path.join(root, 'site-state.json');
 const allowedGuild = process.env.DISCORD_GUILD_ID || '';
 const publicRoot = root;
-// Sadece bu dosyalar disariya servis edilir (.git, .github, .env, server.js vb. asla).
-const publicFiles = new Set(['index.html', 'closed.html', 'maintenance.html', 'music.mp3']);
-const securityHeaders = {
-  'X-Content-Type-Options': 'nosniff',
-  'X-Frame-Options': 'DENY',
-  'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
-  'Content-Security-Policy': [
-    "default-src 'self'",
-    "script-src 'self' 'unsafe-inline'",
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: https://cdn.discordapp.com https://media.discordapp.net https://i.scdn.co",
-    "media-src 'self'",
-    "connect-src 'self' https://api.lanyard.rest",
-    "object-src 'none'",
-    "base-uri 'none'",
-    "form-action 'none'",
-    "frame-ancestors 'none'"
-  ].join('; ')
-};
+const forbiddenPublicFiles = new Set([
+  '.env',
+  'server.js',
+  'package.json',
+  'package-lock.json',
+  'site-state.json',
+  'cloxin-bot.service.example',
+  'nginx.conf.example'
+]);
 const activeVisitors = new Map();
 const visitorTimeoutMs = 45_000;
-const maxVisitors = 5000;
 
 const defaults = {
   mode: 'live',
@@ -54,37 +41,14 @@ async function writeState(nextState) {
   await fs.writeFile(stateFile, `${JSON.stringify(nextState, null, 2)}\n`, 'utf8');
 }
 
-async function sendFile(request, response, filePath, contentType, cacheControl = 'no-cache') {
-  const { size } = await fs.stat(filePath);
-  const headers = { 'Content-Type': contentType, 'Cache-Control': cacheControl, 'Accept-Ranges': 'bytes' };
-  const range = /^bytes=(\d*)-(\d*)$/.exec(request.headers.range || '');
-  let start = 0;
-  let end = size - 1;
-  let status = 200;
-  if (range && (range[1] || range[2])) {
-    if (range[1]) {
-      start = Number(range[1]);
-      if (range[2]) end = Math.min(Number(range[2]), size - 1);
-    } else {
-      start = Math.max(size - Number(range[2]), 0);
-    }
-    if (start > end || start >= size) {
-      response.writeHead(416, { ...headers, 'Content-Range': `bytes */${size}` });
-      response.end();
-      return;
-    }
-    status = 206;
-    headers['Content-Range'] = `bytes ${start}-${end}/${size}`;
-  }
-  headers['Content-Length'] = end - start + 1;
-  response.writeHead(status, headers);
-  if (request.method === 'HEAD') {
-    response.end();
-    return;
-  }
-  createReadStream(filePath, { start, end })
-    .on('error', () => response.destroy())
-    .pipe(response);
+function sendFile(response, filePath, contentType, cacheControl = 'no-cache') {
+  return fs.readFile(filePath).then(contents => {
+    response.writeHead(200, {
+      'Content-Type': contentType,
+      'Cache-Control': cacheControl
+    });
+    response.end(contents);
+  });
 }
 
 function escapeHtml(value) {
@@ -133,32 +97,27 @@ function contentTypeFor(filePath) {
   return types[path.extname(filePath).toLowerCase()] || 'application/octet-stream';
 }
 
-async function handleRequest(request, response) {
-  for (const [name, value] of Object.entries(securityHeaders)) response.setHeader(name, value);
+const server = http.createServer(async (request, response) => {
   const requestUrl = new URL(request.url, 'http://localhost');
 
   if (request.method === 'GET' && requestUrl.pathname === '/api/status') {
     const state = await readState();
     response.writeHead(200, {
       'Content-Type': 'application/json; charset=utf-8',
-      'Cache-Control': 'no-store'
+      'Cache-Control': 'no-store',
+      'Access-Control-Allow-Origin': '*'
     });
     response.end(JSON.stringify({ ...state, onlineVisitors: activeVisitors.size }));
     return;
   }
 
   if (request.method === 'GET' && requestUrl.pathname === '/api/heartbeat') {
-    const rawId = requestUrl.searchParams.get('id') || '';
-    const visitorId = /^[A-Za-z0-9-]{8,64}$/.test(rawId)
-      ? rawId
-      : String(request.headers['x-real-ip'] || request.socket.remoteAddress || 'unknown');
+    const visitorId = requestUrl.searchParams.get('id') ||
+      `${request.headers['x-forwarded-for'] || request.socket.remoteAddress}:${request.headers['user-agent'] || ''}`;
+    activeVisitors.set(visitorId, Date.now());
     const cutoff = Date.now() - visitorTimeoutMs;
     for (const [id, lastSeen] of activeVisitors) {
       if (lastSeen < cutoff) activeVisitors.delete(id);
-    }
-    // Bellek sismesini engelle: limit doluysa yeni kimlikler eklenmez.
-    if (activeVisitors.has(visitorId) || activeVisitors.size < maxVisitors) {
-      activeVisitors.set(visitorId, Date.now());
     }
     response.writeHead(200, {
       'Content-Type': 'application/json; charset=utf-8',
@@ -174,49 +133,37 @@ async function handleRequest(request, response) {
     return;
   }
 
-  if (request.method === 'GET' || request.method === 'HEAD') {
+  if (request.method === 'GET') {
     const state = await readState();
     const forcedPage = state.mode === 'closed' ? 'closed.html' :
       state.mode === 'maintenance' ? 'maintenance.html' : null;
-    let requestedPath = requestUrl.pathname;
-    try { requestedPath = decodeURIComponent(requestedPath); } catch { requestedPath = ''; }
+    const requestedPath = requestUrl.pathname;
     const relativePath = forcedPage || (requestedPath === '/' ? 'index.html' : requestedPath.slice(1));
+    const filePath = path.resolve(publicRoot, relativePath);
 
-    if (publicFiles.has(relativePath)) {
-      const filePath = path.join(publicRoot, relativePath);
+    if (filePath.startsWith(`${publicRoot}${path.sep}`) && !forbiddenPublicFiles.has(relativePath)) {
       try {
         if (forcedPage) {
           await sendStatusPage(response, forcedPage, state);
-        } else if (relativePath === 'index.html') {
+          return;
+        }
+        if (relativePath === 'index.html') {
           await sendPublicPage(response, filePath, state);
         } else {
-          await sendFile(request, response, filePath, contentTypeFor(filePath), 'no-cache');
+          await sendFile(response, filePath, contentTypeFor(filePath), 'no-cache');
         }
         return;
       } catch {
-        if (!response.headersSent) {
-          response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-          response.end('Not found');
-        }
+        response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+        response.end('Not found');
         return;
       }
     }
   }
 
-  response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+  response.writeHead(404);
   response.end('Not found');
-}
-
-const server = http.createServer((request, response) => {
-  handleRequest(request, response).catch(error => {
-    console.error('Istek islenemedi:', error);
-    if (!response.headersSent) response.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
-    response.end('Server error');
-  });
 });
-server.requestTimeout = 30_000;
-server.headersTimeout = 15_000;
-
 
 server.listen(port, '127.0.0.1', () => {
   console.log(`Site control API listening on 127.0.0.1:${port}`);
