@@ -57,6 +57,7 @@ jobs:
             sudo systemctl enable --now cloxin-site.service
             sudo systemctl restart cloxin-site.service
             sudo cp /var/www/html/nginx.conf.example /etc/nginx/sites-available/cloxin
+            sudo ln -sfn /etc/nginx/sites-available/cloxin /etc/nginx/sites-enabled/cloxin
             sudo nginx -t
             sudo systemctl reload nginx
             sudo rm -rf /var/www/html/node_modules
