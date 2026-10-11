@@ -58,6 +58,7 @@ const defaults = {
 
 let settings = structuredClone(defaults);
 let viewCount = 0;
+const countedViewers = new Set();
 let viewsWriteQueue = Promise.resolve();
 
 function sendJson(response, status, payload, extraHeaders = {}) {
@@ -245,14 +246,22 @@ async function saveSettings(nextSettings) {
 }
 
 async function persistViews() {
-  const currentCount = viewCount;
   viewsWriteQueue = viewsWriteQueue.catch(() => {}).then(async () => {
     await fs.mkdir(path.dirname(viewsFile), { recursive: true });
     const temporaryFile = `${viewsFile}.tmp`;
-    await fs.writeFile(temporaryFile, `${JSON.stringify({ views: currentCount })}\n`, { mode: 0o600 });
+    const state = { views: viewCount, visitors: [...countedViewers] };
+    await fs.writeFile(temporaryFile, `${JSON.stringify(state)}\n`, { mode: 0o600 });
     await fs.rename(temporaryFile, viewsFile);
   });
   return viewsWriteQueue;
+}
+
+function viewVisitorKey(request, visitorId) {
+  const validVisitorId = typeof visitorId === 'string' && /^[\da-f-]{36}$/i.test(visitorId);
+  const identity = validVisitorId
+    ? `browser:${visitorId.toLowerCase()}`
+    : `network:${requestIp(request)}|${request.headers['user-agent'] || ''}`;
+  return createHash('sha256').update(identity).digest('hex');
 }
 
 async function handleRequest(request, response) {
@@ -263,12 +272,23 @@ async function handleRequest(request, response) {
     return;
   }
 
-  if (request.method === 'GET' && requestUrl.pathname === '/api/views') {
-    viewCount += 1;
+  if (request.method === 'POST' && requestUrl.pathname === '/api/views') {
+    let body = {};
     try {
-      await persistViews();
-    } catch (error) {
-      console.error('View count could not be saved:', error.message);
+      body = await readJson(request);
+    } catch {
+      body = {};
+    }
+
+    const visitorKey = viewVisitorKey(request, body.visitorId);
+    if (!countedViewers.has(visitorKey)) {
+      countedViewers.add(visitorKey);
+      viewCount += 1;
+      try {
+        await persistViews();
+      } catch (error) {
+        console.error('View count could not be saved:', error.message);
+      }
     }
     sendJson(response, 200, { views: viewCount });
     return;
@@ -408,8 +428,14 @@ async function start() {
     settings = structuredClone(defaults);
   }
   try {
-    const savedViews = JSON.parse(await fs.readFile(viewsFile, 'utf8')).views;
+    const savedViewState = JSON.parse(await fs.readFile(viewsFile, 'utf8'));
+    const savedViews = savedViewState.views;
     if (Number.isSafeInteger(savedViews) && savedViews >= 0) viewCount = savedViews;
+    if (Array.isArray(savedViewState.visitors)) {
+      for (const visitorKey of savedViewState.visitors) {
+        if (typeof visitorKey === 'string' && /^[\da-f]{64}$/i.test(visitorKey)) countedViewers.add(visitorKey);
+      }
+    }
   } catch (error) {
     if (error.code !== 'ENOENT') console.error('Starting view count at zero:', error.message);
   }

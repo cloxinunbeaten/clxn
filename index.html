@@ -655,12 +655,32 @@ async function loadProfileSettings(){
 
 async function loadViewCount(){
   try{
-    const response = await fetch('/api/views', { cache: 'no-store' });
+    const visitorId = getViewVisitorId();
+    const response = await fetch('/api/views', {
+      method: 'POST',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ visitorId })
+    });
     if(!response.ok) throw new Error('View counter unavailable');
     const data = await response.json();
     document.getElementById('viewCount').textContent = String(Math.max(0, Math.floor(Number(data.views) || 0)));
   }catch{
     document.getElementById('viewCount').textContent = '0';
+  }
+}
+
+function getViewVisitorId(){
+  try{
+    const key = 'cloxinViewVisitorId';
+    let visitorId = localStorage.getItem(key);
+    if(!/^[\da-f-]{36}$/i.test(visitorId || '')){
+      visitorId = crypto.randomUUID();
+      localStorage.setItem(key, visitorId);
+    }
+    return visitorId;
+  }catch{
+    return '';
   }
 }
 

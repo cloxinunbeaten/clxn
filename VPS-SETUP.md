@@ -16,6 +16,6 @@ GitHub repository ayarlarında **Settings → Secrets and variables → Actions*
 
 ## Kullanım
 
-Admin paneli `https://cloxinunbeaten.xyz/admin` adresindedir. Profil adı, bio, Discord ID'si, avatar URL'si, renkler, müzik, ses seviyesi ve sosyal butonlar panelden düzenlenebilir. Değişiklikler `/var/lib/cloxin/site-settings.json` altında kalıcıdır; görüntülenme sayısı `/var/lib/cloxin/views.json` içinde tutulur.
+Admin paneli `https://cloxinunbeaten.xyz/admin` adresindedir. Profil adı, bio, Discord ID'si, avatar URL'si, renkler, müzik, ses seviyesi ve sosyal butonlar panelden düzenlenebilir. Değişiklikler `/var/lib/cloxin/site-settings.json` altında kalıcıdır; görüntülenme sayısı ve hash'lenmiş ziyaretçi kimlikleri `/var/lib/cloxin/views.json` içinde tutulur. Tarayıcı yerel depolamasında rastgele bir ziyaretçi kimliği saklanır; aynı tarayıcı tekrar geldiğinde sayaç artmaz. Depolama kapalıysa IP ve User-Agent yalnızca hash girdisi olarak kullanılır; ham IP kaydedilmez.
 
 `deploy.bat` değişiklikleri commit edip `main` branch'ine force kullanmadan push eder. Discord bot servisi dağıtım sırasında kapatılır ve kaldırılır.
