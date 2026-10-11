@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Cloxin | Admin</title>
+<style>
+  :root{
+    color-scheme:dark;
+    --page:#292929;
+    --panel:#353535;
+    --field:#292929;
+    --line:#555;
+    --text:#f3f3f3;
+    --muted:#b7b7b7;
+    --accent:#c7c7c7;
+    font-family:Segoe UI, sans-serif;
+    color:var(--text);
+    background:var(--page);
+  }
+
+  *{box-sizing:border-box;}
+  body{margin:0;min-height:100vh;padding:32px 16px;background:var(--page);}
+  button,input,select,textarea{font:inherit;}
+  .shell{width:min(100%,820px);margin:0 auto;}
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px;}
+  h1{margin:0;font-size:22px;}
+  h2{margin:0 0 16px;font-size:16px;}
+  .top-actions{display:flex;align-items:center;gap:12px;}
+  a{color:var(--muted);}
+  .panel{padding:24px;background:var(--panel);border:1px solid var(--line);border-radius:8px;}
+  .login{width:min(100%,420px);margin:14vh auto 0;}
+  .login p{margin:8px 0 20px;color:var(--muted);font-size:14px;}
+  .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}
+  .field{display:grid;gap:7px;min-width:0;}
+  .field.full{grid-column:1/-1;}
+  label,.field-label{font-size:13px;font-weight:600;}
+  input[type="text"],input[type="url"],input[type="password"],input[type="number"],textarea,select{
+    width:100%;min-width:0;padding:10px 11px;color:var(--text);background:var(--field);border:1px solid var(--line);border-radius:5px;
+  }
+  input[type="color"]{width:48px;height:38px;padding:3px;background:var(--field);border:1px solid var(--line);border-radius:5px;}
+  input[type="range"]{width:100%;accent-color:var(--accent);}
+  textarea{min-height:92px;resize:vertical;}
+  .colors{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;}
+  .color-field{display:flex;align-items:center;gap:8px;min-width:0;}
+  .color-field label{font-size:12px;color:var(--muted);}
+  .section{margin-top:28px;padding-top:22px;border-top:1px solid var(--line);}
+  .social-list{display:grid;gap:10px;}
+  .social-row{display:grid;grid-template-columns:130px minmax(120px,1fr) minmax(180px,2fr) auto auto;align-items:center;gap:8px;}
+  .social-row input[type="checkbox"]{width:18px;height:18px;accent-color:var(--accent);}
+  .btn{min-height:40px;padding:9px 14px;color:var(--text);background:#4a4a4a;border:1px solid #707070;border-radius:5px;cursor:pointer;}
+  .btn:hover{background:#555;}
+  .btn.primary{color:#222;background:#dedede;border-color:#dedede;font-weight:700;}
+  .btn.remove{min-height:36px;padding:6px 10px;}
+  .save-row{display:flex;align-items:center;gap:14px;margin-top:22px;}
+  .status{min-height:20px;color:var(--muted);font-size:13px;}
+  .status.error{color:#ff9b9b;}
+  [hidden]{display:none!important;}
+
+  @media(max-width:640px){
+    body{padding:20px 12px;}
+    .panel{padding:18px;}
+    .form-grid{grid-template-columns:1fr;}
+    .field.full{grid-column:auto;}
+    .colors{grid-template-columns:repeat(2,minmax(0,1fr));}
+    .social-row{grid-template-columns:1fr 1fr;}
+    .social-row input[type="url"]{grid-column:1/-1;}
+    .topbar{align-items:flex-start;}
+    .top-actions{flex-direction:column;align-items:flex-end;gap:8px;}
+  }
+</style>
+</head>
+<body>
+<main class="shell">
+  <section class="panel login" id="loginPanel">
+    <h1>Cloxin Admin</h1>
+    <p>Yönetim paneline giriş yap.</p>
+    <form id="loginForm" class="field">
+      <label for="password">Parola</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+      <button class="btn primary" type="submit">Giriş yap</button>
+      <div class="status" id="loginStatus" role="status"></div>
+    </form>
+  </section>
+
+  <section id="editorPanel" hidden>
+    <header class="topbar">
+      <h1>Cloxin Admin</h1>
+      <div class="top-actions">
+        <a href="/" rel="noreferrer">Profili aç</a>
+        <button class="btn" id="logoutButton" type="button">Çıkış</button>
+      </div>
+    </header>
+
+    <form class="panel" id="settingsForm">
+      <div class="form-grid">
+        <div class="field">
+          <label for="profileId">Discord kullanıcı ID</label>
+          <input id="profileId" name="profileId" type="text" inputmode="numeric" pattern="[0-9]{17,20}" required>
+        </div>
+        <div class="field">
+          <label for="displayName">Görünen ad</label>
+          <input id="displayName" name="displayName" type="text" maxlength="60" placeholder="Discord adını kullan">
+        </div>
+        <div class="field full">
+          <label for="bio">Bio</label>
+          <textarea id="bio" name="bio" maxlength="600"></textarea>
+        </div>
+        <div class="field full">
+          <label for="avatarUrl">Avatar URL</label>
+          <input id="avatarUrl" name="avatarUrl" type="url" placeholder="Discord avatarını kullan">
+        </div>
+      </div>
+
+      <section class="section">
+        <h2>Renkler</h2>
+        <div class="colors">
+          <div class="color-field"><input type="color" data-color="background" aria-label="Arka plan rengi"><label>Arka plan</label></div>
+          <div class="color-field"><input type="color" data-color="card" aria-label="Kart rengi"><label>Kart</label></div>
+          <div class="color-field"><input type="color" data-color="button" aria-label="Buton rengi"><label>Buton</label></div>
+          <div class="color-field"><input type="color" data-color="border" aria-label="Kenarlık rengi"><label>Kenarlık</label></div>
+          <div class="color-field"><input type="color" data-color="text" aria-label="Yazı rengi"><label>Yazı</label></div>
+          <div class="color-field"><input type="color" data-color="muted" aria-label="İkincil yazı rengi"><label>İkincil yazı</label></div>
+          <div class="color-field"><input type="color" data-color="accent" aria-label="Vurgu rengi"><label>Vurgu</label></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Ses</h2>
+        <div class="form-grid">
+          <div class="field">
+            <label for="musicUrl">Müzik URL</label>
+            <input id="musicUrl" name="musicUrl" type="text" placeholder="music.mp3 veya https://...">
+          </div>
+          <div class="field">
+            <label for="volume">Varsayılan ses: <output id="volumeOutput">30</output>%</label>
+            <input id="volume" name="volume" type="range" min="0" max="100" value="30">
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Profil butonları</h2>
+        <div class="social-list" id="socialList"></div>
+        <button class="btn" id="addSocialButton" type="button" style="margin-top:12px">Buton ekle</button>
+      </section>
+
+      <div class="save-row">
+        <button class="btn primary" type="submit">Değişiklikleri kaydet</button>
+        <div class="status" id="saveStatus" role="status"></div>
+      </div>
+    </form>
+  </section>
+</main>
+
+<script>
+const loginPanel = document.getElementById('loginPanel');
+const editorPanel = document.getElementById('editorPanel');
+const loginStatus = document.getElementById('loginStatus');
+const saveStatus = document.getElementById('saveStatus');
+const socialList = document.getElementById('socialList');
+const iconOptions = ['discord', 'github', 'instagram', 'tiktok', 'twitter', 'youtube', 'link'];
+
+async function api(url, options = {}){
+  const response = await fetch(url, {
+    credentials: 'same-origin',
+    ...options,
+    headers: { ...(options.headers || {}) }
+  });
+  const result = await response.json().catch(() => ({}));
+  if(!response.ok){
+    const error = new Error(result.error || 'İstek başarısız.');
+    error.status = response.status;
+    throw error;
+  }
+  return result;
+}
+
+function showEditor(){
+  loginPanel.hidden = true;
+  editorPanel.hidden = false;
+}
+
+function setStatus(element, text, error = false){
+  element.textContent = text;
+  element.classList.toggle('error', error);
+}
+
+function createSocialRow(link = {}){
+  const row = document.createElement('div');
+  row.className = 'social-row';
+  row.innerHTML = `
+    <select aria-label="Buton simgesi">${iconOptions.map(icon => `<option value="${icon}">${icon}</option>`).join('')}</select>
+    <input type="text" maxlength="24" placeholder="Buton adı" aria-label="Buton adı">
+    <input type="url" placeholder="https://" aria-label="Buton bağlantısı">
+    <input type="checkbox" aria-label="Buton etkin" checked>
+    <button class="btn remove" type="button" aria-label="Butonu kaldır">Kaldır</button>`;
+  row.querySelector('select').value = iconOptions.includes(link.iconKey) ? link.iconKey : 'link';
+  row.querySelector('input[type="text"]').value = link.label || '';
+  row.querySelector('input[type="url"]').value = link.url || '';
+  row.querySelector('input[type="checkbox"]').checked = link.enabled !== false;
+  row.querySelector('.remove').addEventListener('click', () => row.remove());
+  socialList.appendChild(row);
+}
+
+async function loadSettings(){
+  const settings = await api('/api/admin/settings');
+  document.getElementById('profileId').value = settings.profileId;
+  document.getElementById('displayName').value = settings.displayName;
+  document.getElementById('bio').value = settings.bio;
+  document.getElementById('avatarUrl').value = settings.avatarUrl;
+  document.getElementById('musicUrl').value = settings.musicUrl;
+  document.getElementById('volume').value = settings.volume;
+  document.getElementById('volumeOutput').value = settings.volume;
+  document.querySelectorAll('[data-color]').forEach(input => {
+    input.value = settings.colors[input.dataset.color];
+  });
+  socialList.replaceChildren();
+  settings.socials.forEach(createSocialRow);
+}
+
+document.getElementById('loginForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  setStatus(loginStatus, '');
+  const password = new FormData(event.currentTarget).get('password');
+  try{
+    await api('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
+    });
+    await loadSettings();
+    showEditor();
+  }catch(error){
+    setStatus(loginStatus, error.status === 429 ? 'Çok fazla deneme. Bir süre sonra tekrar dene.' : 'Giriş başarısız.', true);
+  }
+});
+
+document.getElementById('settingsForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  setStatus(saveStatus, 'Kaydediliyor…');
+  const values = new FormData(event.currentTarget);
+  const settings = {
+    profileId: values.get('profileId'),
+    displayName: values.get('displayName'),
+    bio: values.get('bio'),
+    avatarUrl: values.get('avatarUrl'),
+    musicUrl: values.get('musicUrl') || 'music.mp3',
+    volume: Number(values.get('volume')),
+    colors: Object.fromEntries([...document.querySelectorAll('[data-color]')].map(input => [input.dataset.color, input.value])),
+    socials: [...socialList.querySelectorAll('.social-row')].map(row => ({
+      iconKey: row.querySelector('select').value,
+      label: row.querySelector('input[type="text"]').value,
+      url: row.querySelector('input[type="url"]').value,
+      enabled: row.querySelector('input[type="checkbox"]').checked
+    }))
+  };
+  try{
+    await api('/api/admin/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings)
+    });
+    setStatus(saveStatus, 'Kaydedildi. Profil değişiklikleri hemen görünür.');
+  }catch(error){
+    setStatus(saveStatus, error.status === 401 ? 'Oturum süresi doldu. Yeniden giriş yap.' : 'Kaydedilemedi.', true);
+  }
+});
+
+document.getElementById('volume').addEventListener('input', event => {
+  document.getElementById('volumeOutput').value = event.currentTarget.value;
+});
+
+document.getElementById('addSocialButton').addEventListener('click', () => createSocialRow());
+document.getElementById('logoutButton').addEventListener('click', async () => {
+  await api('/api/admin/logout', { method: 'POST' }).catch(() => {});
+  location.reload();
+});
+
+api('/api/admin/session').then(loadSettings).then(showEditor).catch(error => {
+  if(error.status !== 401) setStatus(loginStatus, 'Admin servisine ulaşılamıyor.', true);
+});
+</script>
+</body>
+</html>

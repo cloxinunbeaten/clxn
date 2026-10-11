@@ -9,10 +9,12 @@
     --bg-0:#4b4b4b;
     --bg-1:#333333;
     --card-bg:#3b3b3b;
+    --button-bg:#333333;
     --border:#626262;
     --text-0:#f4f5f7;
     --text-1:#d0d0d0;
     --text-2:#b0b0b0;
+    --accent:#a0a0a0;
     --online:#23a55a;
     --idle:#f0b232;
     --dnd:#f23f43;
@@ -24,7 +26,7 @@
   html,body{
     margin:0;
     min-height:100vh;
-    background:#4b4b4b;
+    background:var(--bg-0);
     font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
     color:var(--text-0);
     overflow-x:hidden;
@@ -63,7 +65,7 @@
     position:absolute;
     inset:-4px;
     border-radius:50%;
-    border:2px solid #a0a0a0;
+    border:2px solid var(--accent);
   }
 
   .avatar-inner{
@@ -133,7 +135,7 @@
     align-items:center;
     gap:10px;
     text-align:left;
-    background:#333333;
+    background:var(--button-bg);
     border:1px solid var(--border);
     border-radius:8px;
     padding:10px 12px;
@@ -200,7 +202,7 @@
     display:flex;
     align-items:center;
     justify-content:center;
-    background:#333333;
+    background:var(--button-bg);
     border:1px solid var(--border);
     color:var(--text-1);
     transition:transform 0.2s ease, color 0.2s ease, background 0.2s ease;
@@ -211,7 +213,7 @@
   .social-btn:hover{
     transform:translateY(-2px);
     color:var(--text-0);
-    background:#454545;
+    border-color:var(--accent);
   }
 
   .social-btn:active{
@@ -227,7 +229,7 @@
     justify-content:center;
     flex-direction:column;
     gap:10px;
-    background:#4b4b4b;
+    background:var(--bg-0);
     cursor:pointer;
     transition:opacity 0.25s ease;
   }
@@ -317,7 +319,7 @@
     height:46px;
     padding:0 16px 0 4px;
     border-radius:8px;
-    background:#333333;
+    background:var(--button-bg);
     border:1px solid var(--border);
     max-width:0;
     padding-left:0;
@@ -341,7 +343,7 @@
     width:110px;
     height:4px;
     border-radius:2px;
-    background:linear-gradient(to right, #dddddd 0%, #dddddd var(--vol,30%), #777777 var(--vol,30%), #777777 100%);
+    background:linear-gradient(to right, var(--accent) 0%, var(--accent) var(--vol,30%), #777777 var(--vol,30%), #777777 100%);
     outline:none;
     cursor:pointer;
   }
@@ -421,14 +423,21 @@
     padding:7px 9px;
     border:1px solid var(--border);
     border-radius:6px;
-    background:#333333;
-    color:var(--text-0);
-    font:600 11px "SFMono-Regular",Consolas,monospace;
+    background:var(--button-bg);
+    color:var(--accent);
   }
 
-  .view-counter img{
-    display:block;
-    height:20px;
+  .view-counter svg{
+    width:18px;
+    height:18px;
+    fill:none;
+    stroke:currentColor;
+    stroke-width:1.8;
+  }
+
+  .view-counter span{
+    min-width:1ch;
+    font:600 13px "SFMono-Regular",Consolas,monospace;
   }
 </style>
 </head>
@@ -489,8 +498,8 @@
 </div>
 
 <div class="view-counter" aria-label="Profil görüntülenme sayısı">
-  <span>PROFILE VIEWS</span>
-  <img src="https://hits.sh/cloxinunbeaten.xyz.svg?style=flat-square" alt="Görüntülenme sayısı">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+  <span id="viewCount" aria-live="polite">0</span>
 </div>
 
 <script>
@@ -499,7 +508,7 @@
    url alanına kendi profil linkini yaz. Sırayı değiştirmek istersen
    dizideki sırayı değiştirmen yeterli.
    ============================================================ */
-const SOCIALS = [
+const DEFAULT_SOCIALS = [
   {
     name: 'discord',
     enabled: true,
@@ -549,15 +558,88 @@ function renderSocials(){
     a.href = s.url;
     a.target = '_blank';
     a.rel = 'noopener';
-    a.title = s.name;
+    a.title = s.label || s.name;
     a.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor">${s.icon}</svg>`;
     wrap.appendChild(a);
   });
 }
 
-const DISCORD_ID = '1368780659484528702';
+const SOCIAL_ICONS = Object.fromEntries(DEFAULT_SOCIALS.map(social => [social.name, social.icon]));
+const LINK_ICON = '<path fill="none" stroke="currentColor" stroke-width="2" d="M10 13a5 5 0 0 0 7.07 0l3-3A5 5 0 0 0 13 2.93l-1.72 1.71M14 11a5 5 0 0 0-7.07 0l-3 3A5 5 0 0 0 11 21.07l1.71-1.71"/>';
+let SOCIALS = DEFAULT_SOCIALS;
+let DISCORD_ID = '1368780659484528702';
+let profileSettings = {
+  profileId: DISCORD_ID,
+  displayName: '',
+  bio: '',
+  avatarUrl: '',
+  musicUrl: 'music.mp3',
+  volume: 30,
+  colors: { background: '#4b4b4b', card: '#3b3b3b', button: '#333333', border: '#626262', text: '#f4f5f7', muted: '#d0d0d0', accent: '#a0a0a0' },
+  socials: DEFAULT_SOCIALS.filter(social => social.enabled).map(social => ({ iconKey: social.name, label: social.name, url: social.url, enabled: true }))
+};
 const STATUS_LABEL = { online:'Çevrimiçi', idle:'Idle', dnd:'Do Not Disturb', offline:'Offline' };
 const STATUS_COLOR = { online:'#23a55a', idle:'#f0b232', dnd:'#f23f43', offline:'#80848e' };
+
+function applyProfileSettings(settings){
+  profileSettings = {
+    ...profileSettings,
+    ...settings,
+    colors: { ...profileSettings.colors, ...(settings.colors || {}) },
+    socials: Array.isArray(settings.socials) ? settings.socials : profileSettings.socials
+  };
+  DISCORD_ID = profileSettings.profileId;
+
+  const cssColors = {
+    background: '--bg-0',
+    card: '--card-bg',
+    button: '--button-bg',
+    border: '--border',
+    text: '--text-0',
+    muted: '--text-1',
+    accent: '--accent'
+  };
+  for(const [key, variable] of Object.entries(cssColors)){
+    document.documentElement.style.setProperty(variable, profileSettings.colors[key]);
+  }
+  document.documentElement.style.setProperty('--bg-1', profileSettings.colors.button);
+  document.documentElement.style.setProperty('--text-2', profileSettings.colors.muted);
+
+  document.getElementById('bgMusic').src = profileSettings.musicUrl || 'music.mp3';
+  document.getElementById('volumeSlider').value = String(profileSettings.volume);
+  SOCIALS = profileSettings.socials.map(social => ({
+    name: social.label,
+    label: social.label,
+    enabled: social.enabled,
+    url: social.url,
+    icon: SOCIAL_ICONS[social.iconKey] || LINK_ICON
+  }));
+  if(profileSettings.displayName){
+    document.getElementById('displayName').textContent = profileSettings.displayName;
+  }
+  if(profileSettings.avatarUrl){
+    document.getElementById('avatar').src = profileSettings.avatarUrl;
+  }
+  document.title = profileSettings.displayName ? `${profileSettings.displayName} | Profile` : 'Cloxin | Profile';
+}
+
+async function loadProfileSettings(){
+  try{
+    const response = await fetch('/api/profile', { cache: 'no-store' });
+    if(response.ok) applyProfileSettings(await response.json());
+  }catch{}
+}
+
+async function loadViewCount(){
+  try{
+    const response = await fetch('/api/views', { cache: 'no-store' });
+    if(!response.ok) throw new Error('View counter unavailable');
+    const data = await response.json();
+    document.getElementById('viewCount').textContent = String(Math.max(0, Math.floor(Number(data.views) || 0)));
+  }catch{
+    document.getElementById('viewCount').textContent = '0';
+  }
+}
 
 function avatarUrl(user){
   if(user.avatar){
@@ -625,7 +707,7 @@ function applyBio(data){
   const wrap = document.getElementById('bioWrap');
   const text = document.getElementById('bioText');
   const kv = data.kv || {};
-  const bio = kv.bio || kv.about || '';
+  const bio = profileSettings.bio || kv.bio || kv.about || '';
   if(bio){
     text.textContent = bio;
     wrap.classList.add('show');
@@ -643,8 +725,8 @@ async function loadPresence(){
     const data = json.data;
     const user = data.discord_user;
 
-    document.getElementById('avatar').src = avatarUrl(user);
-    document.getElementById('displayName').textContent = user.global_name || user.username;
+    document.getElementById('avatar').src = profileSettings.avatarUrl || avatarUrl(user);
+    document.getElementById('displayName').textContent = profileSettings.displayName || user.global_name || user.username;
     document.getElementById('userTag').textContent = '@' + user.username;
 
     applyStatus(data.discord_status);
@@ -762,11 +844,13 @@ function setupCardParallax(){
   window.addEventListener('mouseleave', onLeave);
 }
 
-function startSite(){
+async function startSite(){
+  await loadProfileSettings();
   renderSocials();
   setupMusicAndEnter();
   setupCardParallax();
   loadPresence();
+  loadViewCount();
   setInterval(loadPresence, 20000);
 }
 

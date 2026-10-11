@@ -11,6 +11,16 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Validate admin password secret
+        shell: bash
+        env:
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+        run: |
+          if [ -z "$ADMIN_PASSWORD" ]; then
+            echo "::error::Add the ADMIN_PASSWORD repository secret before deploying."
+            exit 1
+          fi
+
       - name: Copy Files to VDS via SCP
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -21,19 +31,33 @@ jobs:
           target: "/var/www/html"
           rm: false
 
-      - name: Switch VPS to static hosting
+      - name: Install profile API and admin service
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
         with:
           host: ${{ secrets.VDS_HOST }}
           username: ${{ secrets.VDS_USER }}
           key: ${{ secrets.VDS_SSH_KEY }}
+          envs: ADMIN_PASSWORD
           script: |
-            sudo cp /var/www/html/nginx.conf.example /etc/nginx/sites-available/cloxin
-            sudo nginx -t
-            sudo systemctl reload nginx
+            if [ -z "$ADMIN_PASSWORD" ]; then echo "Configure the ADMIN_PASSWORD Actions secret before deploying." >&2; exit 1; fi
+            sudo install -d -o www-data -g www-data -m 750 /var/lib/cloxin
+            sudo install -d -m 755 /opt/cloxin /etc/cloxin
+            printf 'ADMIN_PASSWORD=%s\nSITE_SETTINGS_FILE=/var/lib/cloxin/site-settings.json\nVIEW_COUNT_FILE=/var/lib/cloxin/views.json\nWEB_ROOT=/var/www/html\n' "$ADMIN_PASSWORD" | sudo tee /etc/cloxin/site.env >/dev/null
+            sudo chmod 600 /etc/cloxin/site.env
+            sudo install -o root -g root -m 644 /var/www/html/server.mjs /opt/cloxin/server.mjs
+            sudo install -o root -g root -m 644 /var/www/html/cloxin-site.service.example /etc/systemd/system/cloxin-site.service
+            sudo rm -f /var/www/html/server.mjs
             sudo systemctl disable --now cloxin-bot.service 2>/dev/null || true
             sudo rm -f /etc/systemd/system/cloxin-bot.service
             sudo systemctl daemon-reload
+            sudo node --check /opt/cloxin/server.mjs
+            sudo systemctl enable --now cloxin-site.service
+            sudo systemctl restart cloxin-site.service
+            sudo cp /var/www/html/nginx.conf.example /etc/nginx/sites-available/cloxin
+            sudo nginx -t
+            sudo systemctl reload nginx
             sudo rm -rf /var/www/html/node_modules
             sudo rm -f /var/www/html/server.js /var/www/html/package.json /var/www/html/package-lock.json /var/www/html/site-state.json /var/www/html/closed.html /var/www/html/maintenance.html /var/www/html/.env.example
             sudo rm -f /etc/cloxin/cloxin.env /var/lib/cloxin/site-state.json

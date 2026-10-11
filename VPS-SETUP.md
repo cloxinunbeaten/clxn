@@ -1,23 +1,21 @@
 # VPS kurulumu
 
-## 1. Nginx
+## Gereksinimler
 
-Site statik dosyalardan oluşur; Node.js, npm veya arka plan servisi gerekmez. `nginx.conf.example` dosyasını `/etc/nginx/sites-available/cloxin` olarak kopyala. TLS sertifika yolları ve domain adları farklıysa dosyada güncelle:
+VPS'te Node.js 20+, Nginx ve HTTPS sertifikaları kurulu olmalı. Etkin Nginx site bağlantısı `/etc/nginx/sites-enabled/cloxin` üzerinden `/etc/nginx/sites-available/cloxin` dosyasını göstermeli. İlk kurulumda:
 
 ```bash
 sudo ln -s /etc/nginx/sites-available/cloxin /etc/nginx/sites-enabled/cloxin
-sudo nginx -t
-sudo systemctl reload nginx
 ```
 
-Nginx yapılandırması `/var/www/html` altındaki dosyaları doğrudan sunar. Eski bot servisini, bot token'ını ve durum dosyasını GitHub Actions dağıtımı kaldırır.
+## Admin parolası
 
-## 2. Otomatik dağıtım
+GitHub repository ayarlarında **Settings → Secrets and variables → Actions** bölümüne `ADMIN_PASSWORD` adında bir repository secret ekle. Parolayı yalnızca secret değerine gir; kaynak dosyaya veya commit'e yazma. Aynı bölümde deploy için `VDS_HOST`, `VDS_USER` ve `VDS_SSH_KEY` secret'ları da tanımlı olmalı.
 
-GitHub Actions için `VDS_HOST`, `VDS_USER` ve `VDS_SSH_KEY` secret'larını tanımla. `main` branch'ine push edildiğinde site dosyaları `/var/www/html` altına kopyalanır, Nginx yapılandırması yenilenir ve eski `cloxin-bot.service` durdurulup kaldırılır. Nginx etkin yapılandırmasının `/etc/nginx/sites-available/cloxin` dosyasına bağlı ve sertifika yollarının doğru olduğundan emin ol.
+`main` branch'ine push edildiğinde workflow uygulamayı `/var/www/html` altına kopyalar, `ADMIN_PASSWORD` değerini root-okunur `/etc/cloxin/site.env` dosyasına yazar, Node servisini kurar ve Nginx'i yeniden yükler. Secret eksikse deploy Nginx veya çalışan servis üzerinde değişiklik yapmadan durur.
 
-`deploy.bat` değişiklikleri commit edip `main` branch'ine normal push yapar. Uzak branch yerelse push güvenli biçimde reddedilir; zorla üzerine yazılmaz.
+## Kullanım
 
-## 3. Profil verisi
+Admin paneli `https://cloxinunbeaten.xyz/admin` adresindedir. Profil adı, bio, Discord ID'si, avatar URL'si, renkler, müzik, ses seviyesi ve sosyal butonlar panelden düzenlenebilir. Değişiklikler `/var/lib/cloxin/site-settings.json` altında kalıcıdır; görüntülenme sayısı `/var/lib/cloxin/views.json` içinde tutulur.
 
-Discord botu kullanılmaz. Profil bilgileri, çevrimiçi durumu ve bio metni tarayıcıdan Lanyard API üzerinden alınır. Kullanıcı ID'si `index.html` içindeki `DISCORD_ID` sabitinden değiştirilir. Bio, Lanyard verisindeki `kv.bio` veya `kv.about` alanından gösterilir.
+`deploy.bat` değişiklikleri commit edip `main` branch'ine force kullanmadan push eder. Discord bot servisi dağıtım sırasında kapatılır ve kaldırılır.
