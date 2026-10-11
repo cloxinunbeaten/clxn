@@ -9,8 +9,11 @@ const port = Number(process.env.PORT || 8787);
 const webRoot = path.resolve(process.env.WEB_ROOT || path.dirname(fileURLToPath(import.meta.url)));
 const settingsFile = process.env.SITE_SETTINGS_FILE || '/var/lib/cloxin/site-settings.json';
 const viewsFile = process.env.VIEW_COUNT_FILE || '/var/lib/cloxin/views.json';
+const uploadsDirectory = path.join(path.dirname(settingsFile), 'uploads');
+const uploadedMusicFile = path.join(uploadsDirectory, 'background.mp3');
 const sessionMaxAgeMs = 8 * 60 * 60 * 1000;
 const bodyLimit = 32 * 1024;
+const musicUploadLimit = 20 * 1024 * 1024;
 const sessions = new Map();
 const loginAttempts = new Map();
 const allowedIcons = new Set(['discord', 'github', 'instagram', 'tiktok', 'twitter', 'youtube', 'link']);
@@ -146,6 +149,32 @@ async function readJson(request) {
   return JSON.parse(body || '{}');
 }
 
+async function readMp3Upload(request) {
+  const fileName = decodeURIComponent(request.headers['x-file-name'] || '');
+  const contentType = (request.headers['content-type'] || '').split(';')[0].toLowerCase();
+  if (!fileName.toLowerCase().endsWith('.mp3') || !['audio/mpeg', 'application/octet-stream'].includes(contentType)) {
+    throw Object.assign(new Error('Only MP3 files are accepted'), { status: 415 });
+  }
+
+  const chunks = [];
+  let bytesRead = 0;
+  for await (const chunk of request) {
+    bytesRead += chunk.length;
+    if (bytesRead > musicUploadLimit) {
+      throw Object.assign(new Error('MP3 exceeds 20 MB'), { status: 413 });
+    }
+    chunks.push(chunk);
+  }
+
+  const file = Buffer.concat(chunks);
+  const hasId3Header = file.subarray(0, 3).toString('ascii') === 'ID3';
+  const hasMpegFrame = file[0] === 0xff && (file[1] & 0xe0) === 0xe0;
+  if (!file.length || (!hasId3Header && !hasMpegFrame)) {
+    throw Object.assign(new Error('File is not a valid MP3'), { status: 415 });
+  }
+  return file;
+}
+
 function sessionToken(request) {
   const cookieHeader = request.headers.cookie || '';
   const sessionCookie = cookieHeader.split(';').map(item => item.trim()).find(item => item.startsWith('cloxin_admin_session='));
@@ -184,8 +213,9 @@ async function serveStatic(request, response, pathname) {
     return true;
   }
 
-  const filePath = path.resolve(webRoot, relativePath);
-  if (!filePath.startsWith(`${webRoot}${path.sep}`) || relativePath.split(/[\\/]/).some(part => part.startsWith('.'))) {
+  const isUploadedMusic = pathname === '/uploads/background.mp3';
+  const filePath = isUploadedMusic ? uploadedMusicFile : path.resolve(webRoot, relativePath);
+  if (!isUploadedMusic && (!filePath.startsWith(`${webRoot}${path.sep}`) || relativePath.split(/[\\/]/).some(part => part.startsWith('.')))) {
     sendJson(response, 404, { error: 'Not found' });
     return true;
   }
@@ -194,7 +224,7 @@ async function serveStatic(request, response, pathname) {
     const contents = await fs.readFile(filePath);
     response.writeHead(200, {
       'Content-Type': contentTypes[path.extname(filePath).toLowerCase()] || 'application/octet-stream',
-      'Cache-Control': filePath.endsWith('.html') ? 'no-store' : 'no-cache',
+      'Cache-Control': filePath.endsWith('.html') || isUploadedMusic ? 'no-store' : 'no-cache',
       'X-Content-Type-Options': 'nosniff'
     });
     response.end(request.method === 'HEAD' ? undefined : contents);
@@ -296,6 +326,38 @@ async function handleRequest(request, response) {
     }
     sessions.delete(sessionToken(request));
     sendJson(response, 200, { authenticated: false }, { 'Set-Cookie': cookieHeader(request, '', 0) });
+    return;
+  }
+
+  if (request.method === 'POST' && requestUrl.pathname === '/api/admin/music') {
+    if (!hasSession(request)) {
+      sendJson(response, 401, { error: 'Authentication required' });
+      return;
+    }
+    if (!sameOrigin(request)) {
+      sendJson(response, 403, { error: 'Origin not allowed' });
+      return;
+    }
+
+    let musicFile;
+    try {
+      musicFile = await readMp3Upload(request);
+    } catch (error) {
+      sendJson(response, error.status || 400, { error: error.message });
+      return;
+    }
+
+    try {
+      await fs.mkdir(uploadsDirectory, { recursive: true });
+      const temporaryFile = `${uploadedMusicFile}.tmp`;
+      await fs.writeFile(temporaryFile, musicFile, { mode: 0o640 });
+      await fs.rename(temporaryFile, uploadedMusicFile);
+      await saveSettings({ ...settings, musicUrl: '/uploads/background.mp3' });
+      sendJson(response, 200, { musicUrl: settings.musicUrl });
+    } catch (error) {
+      console.error('Uploaded music could not be saved:', error.message);
+      sendJson(response, 500, { error: 'Music upload could not be saved' });
+    }
     return;
   }
 

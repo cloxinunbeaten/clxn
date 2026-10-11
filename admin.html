@@ -23,7 +23,7 @@
   *{box-sizing:border-box;}
   body{margin:0;min-height:100vh;padding:32px 16px;background:var(--page);}
   button,input,select,textarea{font:inherit;}
-  .shell{width:min(100%,820px);margin:0 auto;}
+  .shell{width:min(100%,1240px);margin:0 auto;}
   .topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px;}
   h1{margin:0;font-size:22px;}
   h2{margin:0 0 16px;font-size:16px;}
@@ -36,7 +36,7 @@
   .field{display:grid;gap:7px;min-width:0;}
   .field.full{grid-column:1/-1;}
   label,.field-label{font-size:13px;font-weight:600;}
-  input[type="text"],input[type="url"],input[type="password"],input[type="number"],textarea,select{
+  input[type="text"],input[type="url"],input[type="password"],input[type="number"],input[type="file"],textarea,select{
     width:100%;min-width:0;padding:10px 11px;color:var(--text);background:var(--field);border:1px solid var(--line);border-radius:5px;
   }
   input[type="color"]{width:48px;height:38px;padding:3px;background:var(--field);border:1px solid var(--line);border-radius:5px;}
@@ -49,6 +49,10 @@
   .social-list{display:grid;gap:10px;}
   .social-row{display:grid;grid-template-columns:130px minmax(120px,1fr) minmax(180px,2fr) auto auto;align-items:center;gap:8px;}
   .social-row input[type="checkbox"]{width:18px;height:18px;accent-color:var(--accent);}
+  .workspace{display:grid;grid-template-columns:minmax(300px,360px) minmax(0,1fr);align-items:start;gap:18px;}
+  .preview-panel{position:sticky;top:16px;padding:16px;background:var(--panel);border:1px solid var(--line);border-radius:8px;}
+  .preview-panel h2{margin:0 0 12px;}
+  .preview-frame{display:block;width:100%;height:590px;background:var(--page);border:1px solid var(--line);border-radius:6px;}
   .btn{min-height:40px;padding:9px 14px;color:var(--text);background:#4a4a4a;border:1px solid #707070;border-radius:5px;cursor:pointer;}
   .btn:hover{background:#555;}
   .btn.primary{color:#222;background:#dedede;border-color:#dedede;font-weight:700;}
@@ -58,6 +62,12 @@
   .status.error{color:#ff9b9b;}
   [hidden]{display:none!important;}
 
+  @media(max-width:900px){
+    .workspace{grid-template-columns:1fr;}
+    .preview-panel{position:static;}
+    .preview-frame{height:540px;}
+  }
+
   @media(max-width:640px){
     body{padding:20px 12px;}
     .panel{padding:18px;}
@@ -66,6 +76,7 @@
     .colors{grid-template-columns:repeat(2,minmax(0,1fr));}
     .social-row{grid-template-columns:1fr 1fr;}
     .social-row input[type="url"]{grid-column:1/-1;}
+    .preview-frame{height:500px;}
     .topbar{align-items:flex-start;}
     .top-actions{flex-direction:column;align-items:flex-end;gap:8px;}
   }
@@ -92,6 +103,12 @@
         <button class="btn" id="logoutButton" type="button">Çıkış</button>
       </div>
     </header>
+
+    <div class="workspace">
+      <aside class="preview-panel">
+        <h2>Canlı profil</h2>
+        <iframe class="preview-frame" id="profilePreview" src="/?adminPreview=1" title="Canlı profil kartı" scrolling="no"></iframe>
+      </aside>
 
     <form class="panel" id="settingsForm">
       <div class="form-grid">
@@ -137,6 +154,11 @@
             <label for="volume">Varsayılan ses: <output id="volumeOutput">30</output>%</label>
             <input id="volume" name="volume" type="range" min="0" max="100" value="30">
           </div>
+          <div class="field full">
+            <label for="musicFile">Bilgisayardan MP3 yükle</label>
+            <input id="musicFile" type="file" accept=".mp3,audio/mpeg">
+            <div class="status" id="uploadStatus" role="status">En fazla 20 MB</div>
+          </div>
         </div>
       </section>
 
@@ -151,6 +173,7 @@
         <div class="status" id="saveStatus" role="status"></div>
       </div>
     </form>
+    </div>
   </section>
 </main>
 
@@ -159,8 +182,12 @@ const loginPanel = document.getElementById('loginPanel');
 const editorPanel = document.getElementById('editorPanel');
 const loginStatus = document.getElementById('loginStatus');
 const saveStatus = document.getElementById('saveStatus');
+const uploadStatus = document.getElementById('uploadStatus');
 const socialList = document.getElementById('socialList');
+const settingsForm = document.getElementById('settingsForm');
+const profilePreview = document.getElementById('profilePreview');
 const iconOptions = ['discord', 'github', 'instagram', 'tiktok', 'twitter', 'youtube', 'link'];
+let previewTimer;
 
 async function api(url, options = {}){
   const response = await fetch(url, {
@@ -200,7 +227,12 @@ function createSocialRow(link = {}){
   row.querySelector('input[type="text"]').value = link.label || '';
   row.querySelector('input[type="url"]').value = link.url || '';
   row.querySelector('input[type="checkbox"]').checked = link.enabled !== false;
-  row.querySelector('.remove').addEventListener('click', () => row.remove());
+  row.querySelector('.remove').addEventListener('click', () => {
+    row.remove();
+    sendPreview();
+  });
+  row.addEventListener('input', sendPreview);
+  row.addEventListener('change', sendPreview);
   socialList.appendChild(row);
 }
 
@@ -218,30 +250,12 @@ async function loadSettings(){
   });
   socialList.replaceChildren();
   settings.socials.forEach(createSocialRow);
+  sendPreview();
 }
 
-document.getElementById('loginForm').addEventListener('submit', async event => {
-  event.preventDefault();
-  setStatus(loginStatus, '');
-  const password = new FormData(event.currentTarget).get('password');
-  try{
-    await api('/api/admin/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password })
-    });
-    await loadSettings();
-    showEditor();
-  }catch(error){
-    setStatus(loginStatus, error.status === 429 ? 'Çok fazla deneme. Bir süre sonra tekrar dene.' : 'Giriş başarısız.', true);
-  }
-});
-
-document.getElementById('settingsForm').addEventListener('submit', async event => {
-  event.preventDefault();
-  setStatus(saveStatus, 'Kaydediliyor…');
-  const values = new FormData(event.currentTarget);
-  const settings = {
+function collectSettings(){
+  const values = new FormData(settingsForm);
+  return {
     profileId: values.get('profileId'),
     displayName: values.get('displayName'),
     bio: values.get('bio'),
@@ -256,6 +270,38 @@ document.getElementById('settingsForm').addEventListener('submit', async event =
       enabled: row.querySelector('input[type="checkbox"]').checked
     }))
   };
+}
+
+function sendPreview(){
+  if(editorPanel.hidden || !profilePreview.contentWindow) return;
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(() => {
+    profilePreview.contentWindow.postMessage({ type: 'cloxin-profile-preview', settings: collectSettings() }, location.origin);
+  }, 100);
+}
+
+document.getElementById('loginForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  setStatus(loginStatus, '');
+  const password = new FormData(event.currentTarget).get('password');
+  try{
+    await api('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
+    });
+    await loadSettings();
+    showEditor();
+    sendPreview();
+  }catch(error){
+    setStatus(loginStatus, error.status === 429 ? 'Çok fazla deneme. Bir süre sonra tekrar dene.' : 'Giriş başarısız.', true);
+  }
+});
+
+document.getElementById('settingsForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  setStatus(saveStatus, 'Kaydediliyor…');
+  const settings = collectSettings();
   try{
     await api('/api/admin/settings', {
       method: 'PUT',
@@ -263,6 +309,7 @@ document.getElementById('settingsForm').addEventListener('submit', async event =
       body: JSON.stringify(settings)
     });
     setStatus(saveStatus, 'Kaydedildi. Profil değişiklikleri hemen görünür.');
+    sendPreview();
   }catch(error){
     setStatus(saveStatus, error.status === 401 ? 'Oturum süresi doldu. Yeniden giriş yap.' : 'Kaydedilemedi.', true);
   }
@@ -270,6 +317,42 @@ document.getElementById('settingsForm').addEventListener('submit', async event =
 
 document.getElementById('volume').addEventListener('input', event => {
   document.getElementById('volumeOutput').value = event.currentTarget.value;
+  sendPreview();
+});
+
+settingsForm.addEventListener('input', sendPreview);
+settingsForm.addEventListener('change', sendPreview);
+profilePreview.addEventListener('load', sendPreview);
+
+document.getElementById('musicFile').addEventListener('change', async event => {
+  const fileInput = event.currentTarget;
+  const file = fileInput.files?.[0];
+  if(!file) return;
+  if(file.size > 20 * 1024 * 1024){
+    setStatus(uploadStatus, 'Dosya 20 MB sınırını aşıyor.', true);
+    fileInput.value = '';
+    return;
+  }
+
+  setStatus(uploadStatus, 'Yükleniyor…');
+  try{
+    const result = await api('/api/admin/music', {
+      method: 'POST',
+      headers: {
+        'Content-Type': file.type || 'audio/mpeg',
+        'X-File-Name': encodeURIComponent(file.name)
+      },
+      body: file
+    });
+    document.getElementById('musicUrl').value = result.musicUrl;
+    setStatus(uploadStatus, 'MP3 yüklendi.');
+    setStatus(saveStatus, 'Yüklenen müzik profil ayarına uygulandı.');
+    sendPreview();
+  }catch(error){
+    setStatus(uploadStatus, error.status === 413 ? 'Dosya 20 MB sınırını aşıyor.' : 'MP3 yüklenemedi.', true);
+  }finally{
+    fileInput.value = '';
+  }
 });
 
 document.getElementById('addSocialButton').addEventListener('click', () => createSocialRow());
@@ -278,7 +361,10 @@ document.getElementById('logoutButton').addEventListener('click', async () => {
   location.reload();
 });
 
-api('/api/admin/session').then(loadSettings).then(showEditor).catch(error => {
+api('/api/admin/session').then(loadSettings).then(() => {
+  showEditor();
+  sendPreview();
+}).catch(error => {
   if(error.status !== 401) setStatus(loginStatus, 'Admin servisine ulaşılamıyor.', true);
 });
 </script>
