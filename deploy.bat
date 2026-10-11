@@ -6,7 +6,7 @@ echo [1/3] Degisiklikler ekleniyor...
 git add -A
 if errorlevel 1 exit /b 1
 
-set /p commit_msg="Commit mesajini girin (Bos birakirsiniz 'auto update' olur): "
+set "commit_msg=%~1"
 if "%commit_msg%"=="" set commit_msg=auto update
 
 echo [2/3] Commit atiliyor...
