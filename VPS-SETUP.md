@@ -1,56 +1,8 @@
 # VPS kurulumu
 
-## 1. Dosyalar ve Node
+## 1. Nginx
 
-Ubuntu/Debian VPS'te Node.js 20+ kurulu olsun. Projeyi `/var/www/html` altına aldıktan sonra:
-
-```bash
-cd /var/www/html
-npm ci --omit=dev
-sudo mkdir -p /etc/cloxin /var/lib/cloxin
-sudo cp cloxin-bot.service.example /etc/systemd/system/cloxin-bot.service
-sudo nano /etc/cloxin/cloxin.env
-```
-
-`cloxin.env` içeriği:
-
-```env
-DISCORD_TOKEN=bot-token
-DISCORD_GUILD_ID=sunucu-id
-PORT=8787
-SITE_STATE_FILE=/var/lib/cloxin/site-state.json
-```
-
-Sonra servisi başlat:
-
-```bash
-sudo chown -R www-data:www-data /var/lib/cloxin
-sudo systemctl daemon-reload
-sudo systemctl enable --now cloxin-bot.service
-```
-
-Discord Developer Portal'da botu sunucuya `applications.commands` ve `bot` scope'larıyla ekle. `/site` komutu sunucu yöneticileri için kullanılabilir:
-
-```text
-/site mode:Bakim
-/site mode:Kapali title:Site kapali message:Kisa bir aciklama
-/site mode:Acik
-```
-
-Ek yonetim komutlari:
-
-```text
-/ziyaretci
-/durum
-/ping
-/profil id:123456789012345678
-```
-
-`/ziyaretci` son 45 saniyede heartbeat gönderen aktif ziyaretçileri sayar. JavaScript kapali ziyaretçiler heartbeat gönderemeyecegi için bu sayiya dahil edilmez. `/profil` komutu profil kartinin ve Lanyard presence sorgusunun kullanacagi Discord kullanici ID'sini degistirir; acik sayfalar degisikligi en fazla 10 saniye icinde alir.
-
-## 2. Nginx 
-
-`nginx.conf.example` içeriğini site domainine göre `/etc/nginx/sites-available/cloxin` olarak kopyala. `server_name` değerini değiştirip etkinleştir:
+Site statik dosyalardan oluşur; Node.js, npm veya arka plan servisi gerekmez. `nginx.conf.example` dosyasını `/etc/nginx/sites-available/cloxin` olarak kopyala. TLS sertifika yolları ve domain adları farklıysa dosyada güncelle:
 
 ```bash
 sudo ln -s /etc/nginx/sites-available/cloxin /etc/nginx/sites-enabled/cloxin
@@ -58,71 +10,14 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-Nginx, API ve tüm site isteklerini Node servisine aktarır. Node modu sunucu tarafında kontrol ettiği için JavaScript kapalı olsa bile bakım/kapalı ekranı aşılamaz.
+Nginx yapılandırması `/var/www/html` altındaki dosyaları doğrudan sunar. Eski bot servisini, bot token'ını ve durum dosyasını GitHub Actions dağıtımı kaldırır.
 
-Cloudflare HTTPS kullandigi için `/api/status` location'i mutlaka `443 ssl` ile gelen aktif server blogunda da bulunmali. Certbot genellikle 80 ve 443 bloglarini ayri olusturur. Aktif konfigurasyonlari bul:
+## 2. Otomatik dağıtım
 
-```bash
-sudo nginx -T | grep -n -A25 -B5 'server_name.*cloxinunbeaten.xyz'
-sudo nginx -T | grep -n -A8 -B2 'location = /api/status'
-```
+GitHub Actions için `VDS_HOST`, `VDS_USER` ve `VDS_SSH_KEY` secret'larını tanımla. `main` branch'ine push edildiğinde site dosyaları `/var/www/html` altına kopyalanır, Nginx yapılandırması yenilenir ve eski `cloxin-bot.service` durdurulup kaldırılır. Nginx etkin yapılandırmasının `/etc/nginx/sites-available/cloxin` dosyasına bağlı ve sertifika yollarının doğru olduğundan emin ol.
 
-HTTPS server blogunda (`listen 443 ssl` olan blog) su location yoksa ekle:
+`deploy.bat` değişiklikleri commit edip `main` branch'ine normal push yapar. Uzak branch yerelse push güvenli biçimde reddedilir; zorla üzerine yazılmaz.
 
-```nginx
-location = /api/status {
-	proxy_pass http://127.0.0.1:8787;
-	proxy_http_version 1.1;
-	proxy_set_header Host $host;
-	proxy_set_header X-Real-IP $remote_addr;
-	proxy_no_cache 1;
-}
-```
+## 3. Profil verisi
 
-`location /` blogu da statik dosya yerine Node'a proxy yapmali:
-
-```nginx
-location / {
-	proxy_pass http://127.0.0.1:8787;
-	proxy_http_version 1.1;
-	proxy_set_header Host $host;
-	proxy_set_header X-Real-IP $remote_addr;
-	proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-	proxy_set_header X-Forwarded-Proto $scheme;
-	proxy_no_cache 1;
-}
-```
-
-Sonra konfigurasyonu kontrol edip yenile:
-
-```bash
-sudo nginx -t
-sudo systemctl reload nginx
-curl -i http://127.0.0.1:8787/api/status
-curl -i https://cloxinunbeaten.xyz/api/status
-```
-
-Son iki komut da `200` ve `mode` içeren JSON dönmelidir. Public domain hâlâ `404` dönüyorsa istek başka bir Nginx server bloguna gidiyordur; `nginx -T` çıktısındaki `server_name` ve `listen 443 ssl` blogunu düzenle.
-
-## 3. Otomatik deploy
-
-GitHub Actions için `VDS_HOST`, `VDS_USER` ve `VDS_SSH_KEY` secret'ları tanımlı olmalı. `main` branch'e push edildiğinde dosyalar kopyalanır, bağımlılıklar kurulur ve `cloxin-bot.service` yeniden başlatılır.
-
-`/etc/cloxin/cloxin.env` sunucuda tutulur; repoya eklenmez.
-
-## Paket hatasi onarimi
-
-`Cannot find package .../node_modules/discord.js/index.js` görürsen paket kurulumu bozulmustur. Proje klasöründe su komutlari calistir:
-
-```bash
-cd /var/www/html
-rm -rf node_modules
-npm cache verify
-npm ci --omit=dev
-node -e "const p=require('./node_modules/discord.js/package.json'); console.log(p.version, p.main)"
-sudo systemctl reset-failed cloxin-bot.service
-sudo systemctl restart cloxin-bot.service
-sudo systemctl status cloxin-bot.service --no-pager
-```
-
-Beklenen paket girisi `14.27.0` ve `./src/index.js` olmalidir. `package-lock.json` dosyasini silme; deploy bu dosyayi kullanarak ayni sürümü kurar.
+Discord botu kullanılmaz. Profil bilgileri, çevrimiçi durumu ve bio metni tarayıcıdan Lanyard API üzerinden alınır. Kullanıcı ID'si `index.html` içindeki `DISCORD_ID` sabitinden değiştirilir. Bio, Lanyard verisindeki `kv.bio` veya `kv.about` alanından gösterilir.

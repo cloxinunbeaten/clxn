@@ -1,4 +1,4 @@
-name: Deploy to VDS
+name: Deploy profile to VDS
 
 on:
   push:
@@ -21,15 +21,19 @@ jobs:
           target: "/var/www/html"
           rm: false
 
-      - name: Install bot and restart service
+      - name: Switch VPS to static hosting
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VDS_HOST }}
           username: ${{ secrets.VDS_USER }}
           key: ${{ secrets.VDS_SSH_KEY }}
           script: |
-            cd /var/www/html
-            rm -rf node_modules
-            npm ci --omit=dev
-            node -e "const p=require('./node_modules/discord.js/package.json'); if (p.version !== '14.27.0' || p.main !== './src/index.js') process.exit(1)"
-            sudo systemctl restart cloxin-bot.service
+            sudo cp /var/www/html/nginx.conf.example /etc/nginx/sites-available/cloxin
+            sudo nginx -t
+            sudo systemctl reload nginx
+            sudo systemctl disable --now cloxin-bot.service 2>/dev/null || true
+            sudo rm -f /etc/systemd/system/cloxin-bot.service
+            sudo systemctl daemon-reload
+            sudo rm -rf /var/www/html/node_modules
+            sudo rm -f /var/www/html/server.js /var/www/html/package.json /var/www/html/package-lock.json /var/www/html/site-state.json /var/www/html/closed.html /var/www/html/maintenance.html /var/www/html/.env.example
+            sudo rm -f /etc/cloxin/cloxin.env /var/lib/cloxin/site-state.json

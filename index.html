@@ -544,85 +544,6 @@
     .volume-wrap{ transition:opacity 0.2s ease; }
   }
 
-  /* ===== Bakım Modu / Geçici Kapatma ekranı ===== */
-  .maintenance-screen{
-    position:fixed;
-    inset:0;
-    z-index:999;
-    display:none;
-    align-items:center;
-    justify-content:center;
-    padding:24px;
-    background:var(--bg-0);
-  }
-
-  .maintenance-screen.show{ display:flex; }
-
-  .maintenance-card{
-    position:relative;
-    z-index:1;
-    width:100%;
-    max-width:400px;
-    padding:44px 30px 36px;
-    border-radius:24px;
-    background:
-      linear-gradient(160deg, rgba(255,255,255,0.07), rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.03) 100%),
-      var(--glass);
-    border:1px solid var(--glass-border);
-    backdrop-filter:blur(22px) saturate(140%);
-    -webkit-backdrop-filter:blur(22px) saturate(140%);
-    box-shadow:
-      inset 0 1px 0 rgba(255,255,255,0.09),
-      0 2px 8px rgba(0,0,0,0.35),
-      0 40px 80px -24px rgba(0,0,0,0.85),
-      0 0 60px -18px var(--silver-soft);
-    text-align:center;
-  }
-
-  .maintenance-icon{
-    width:64px;
-    height:64px;
-    margin:0 auto 22px;
-    border-radius:50%;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    background:rgba(255,255,255,0.05);
-    border:1px solid var(--glass-border);
-    animation:maint-pulse 2.4s ease-in-out infinite;
-  }
-
-  .maintenance-icon svg{
-    width:28px;
-    height:28px;
-    color:var(--silver);
-  }
-
-  @keyframes maint-pulse{
-    0%,100%{ box-shadow:0 0 0 0 var(--silver-soft); }
-    50%{ box-shadow:0 0 0 12px rgba(217,222,230,0); }
-  }
-
-  @media (prefers-reduced-motion: reduce){
-    .maintenance-icon{ animation:none; }
-  }
-
-  .maintenance-title{
-    font-family:"Sora","Inter",sans-serif;
-    font-size:20px;
-    font-weight:600;
-    letter-spacing:-0.01em;
-    margin:0 0 10px;
-    color:var(--text-0);
-  }
-
-  .maintenance-text{
-    font-size:14px;
-    line-height:1.6;
-    color:var(--text-1);
-    margin:0;
-  }
-
   /* ===== Mobil düzen — müzik kontrolü kartla çakışmasın diye alta sabitlenir ===== */
   @media (max-width:480px){
     body{ padding:24px 16px 84px; }
@@ -669,19 +590,6 @@
 <body>
 
 <div class="field" id="field" aria-hidden="true"></div>
-
-<!-- Bakım/Kapalı modunda gösterilen ekran. Normal durumda gizli kalır. -->
-<div class="maintenance-screen" id="maintenanceScreen">
-  <div class="maintenance-card">
-    <div class="maintenance-icon" aria-hidden="true">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-      </svg>
-    </div>
-    <h1 class="maintenance-title" id="maintenanceTitle">Bakımdayız</h1>
-    <p class="maintenance-text" id="maintenanceText">Sitede planlı bir bakım çalışması yürütüyoruz. Kısa süre içinde tekrar buradayız.</p>
-  </div>
-</div>
 
 <audio id="bgMusic" src="music.mp3" loop preload="auto"></audio>
 
@@ -747,7 +655,7 @@ const SOCIALS = [
   {
     name: 'discord',
     enabled: true,
-    url: 'https://discord.com/users/__DISCORD_ID__',
+    url: 'https://discord.com/users/1368780659484528702',
     icon: `<path d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.056 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.099.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.076.076 0 0 0-.04.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.055c.5-5.177-.838-9.673-3.548-13.66a.061.061 0 0 0-.031-.028ZM8.02 15.33c-1.183 0-2.157-1.086-2.157-2.42 0-1.333.955-2.42 2.157-2.42 1.211 0 2.176 1.096 2.157 2.42 0 1.334-.946 2.42-2.157 2.42Zm7.975 0c-1.183 0-2.157-1.086-2.157-2.42 0-1.333.955-2.42 2.157-2.42 1.211 0 2.176 1.096 2.157 2.42 0 1.334-.946 2.42-2.157 2.42Z"/>`
   },
   {
@@ -823,7 +731,7 @@ function createParticles(){
   }
 }
 
-let DISCORD_ID = '__DISCORD_ID__';
+const DISCORD_ID = '1368780659484528702';
 const STATUS_LABEL = { online:'Çevrimiçi', idle:'Idle', dnd:'Do Not Disturb', offline:'Offline' };
 const STATUS_COLOR = { online:'#23a55a', idle:'#f0b232', dnd:'#f23f43', offline:'#80848e' };
 
@@ -894,8 +802,6 @@ function applyActivity(data){
 function applyBio(data){
   const wrap = document.getElementById('bioWrap');
   const text = document.getElementById('bioText');
-  // Lanyard KV üzerinden "bio" anahtarı okunuyor.
-  // Discord bot'a DM: .set bio Senin metnin
   const kv = data.kv || {};
   const bio = kv.bio || kv.about || '';
   if(bio){
@@ -1038,75 +944,16 @@ function setupCardParallax(){
   window.addEventListener('mouseleave', onLeave);
 }
 
-/* ============================================================
-  BAKIM MODU / GEÇİCİ KAPATMA
-  Site durumu VPS üzerindeki /api/status uç noktasından okunur.
-  ============================================================ */
 function startSite(){
   renderSocials();
   createParticles();
   setupMusicAndEnter();
   setupCardParallax();
   loadPresence();
-  sendVisitorHeartbeat();
   setInterval(loadPresence, 20000);
-  setInterval(sendVisitorHeartbeat, 15000);
 }
 
-function sendVisitorHeartbeat(){
-  let visitorId;
-  try {
-    visitorId = localStorage.getItem('cloxinVisitorId');
-    if(!visitorId){
-      visitorId = crypto.randomUUID();
-      localStorage.setItem('cloxinVisitorId', visitorId);
-    }
-  } catch {
-    visitorId = `temporary-${Date.now()}-${Math.random()}`;
-  }
-  fetch(`/api/heartbeat?id=${encodeURIComponent(visitorId)}`, { cache: 'no-store' }).catch(() => {});
-}
-
-async function boot(){
-  try{
-    const res = await fetch('/api/status', { cache: 'no-store' });
-    if(!res.ok) throw new Error(`Status API ${res.status}`);
-    const data = await res.json();
-    if(/^\d{17,20}$/.test(data.profileId || '')){
-      DISCORD_ID = data.profileId;
-    }
-    if(data.mode === 'maintenance' || data.mode === 'closed'){
-      const page = data.mode === 'closed' ? 'closed.html' : 'maintenance.html';
-      const query = new URLSearchParams();
-      if(data.title) query.set('title', data.title);
-      if(data.message) query.set('message', data.message);
-      window.location.replace(`${page}${query.toString() ? `?${query}` : ''}`);
-      return;
-    }
-  }catch(e){
-    window.location.replace('maintenance.html?title=Site%20durumu%20okunamadi&message=Durum%20sunucusuna%20baglanilamiyor.');
-    return;
-  }
-
-  startSite();
-}
-
-setInterval(() => {
-  fetch('/api/status', { cache: 'no-store' })
-    .then(response => response.ok ? response.json() : null)
-    .then(data => {
-      if(data && (data.mode === 'maintenance' || data.mode === 'closed')){
-        const page = data.mode === 'closed' ? 'closed.html' : 'maintenance.html';
-        const query = new URLSearchParams();
-        if(data.title) query.set('title', data.title);
-        if(data.message) query.set('message', data.message);
-        window.location.replace(`${page}${query.toString() ? `?${query}` : ''}`);
-      }
-    })
-    .catch(() => {});
-}, 10000);
-
-boot();
+startSite();
 </script>
 </body>
 </html>

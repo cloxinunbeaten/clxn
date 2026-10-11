@@ -1,17 +1,21 @@
 @echo off
-cd /d "C:\Users\Harun\Desktop\cloxin"
+cd /d "%~dp0"
+if errorlevel 1 exit /b 1
 
 echo [1/3] Degisiklikler ekleniyor...
-git add .
+git add -A
+if errorlevel 1 exit /b 1
 
 set /p commit_msg="Commit mesajini girin (Bos birakirsiniz 'auto update' olur): "
 if "%commit_msg%"=="" set commit_msg=auto update
 
 echo [2/3] Commit atiliyor...
 git commit -m "%commit_msg%"
+if errorlevel 1 exit /b 1
 
 echo [3/3] GitHub'a push ediliyor...
-git push origin main --force
+git push origin main
+if errorlevel 1 exit /b 1
 
 echo.
 echo ====================================
