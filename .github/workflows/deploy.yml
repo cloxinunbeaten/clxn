@@ -22,15 +22,26 @@ jobs:
             exit 1
           fi
 
-      - name: Copy Files to VDS via SCP
+      - name: Copy public site to VDS
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.VDS_HOST }}
           username: ${{ secrets.VDS_USER }}
           key: ${{ secrets.VDS_SSH_KEY }}
-          source: "."
+          source: "public/*"
           target: "/var/www/html"
+          strip_components: 1
           rm: false
+
+      - name: Copy server and deploy files to VDS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VDS_HOST }}
+          username: ${{ secrets.VDS_USER }}
+          key: ${{ secrets.VDS_SSH_KEY }}
+          source: "server,deploy"
+          target: "/tmp/cloxin-release"
+          rm: true
 
       - name: Install profile API and admin service
         uses: appleboy/ssh-action@v1.0.3
@@ -47,16 +58,19 @@ jobs:
             sudo install -d -m 755 /opt/cloxin /etc/cloxin
             printf 'ADMIN_PASSWORD=%s\nSITE_SETTINGS_FILE=/var/lib/cloxin/site-settings.json\nVIEW_COUNT_FILE=/var/lib/cloxin/views.json\nWEB_ROOT=/var/www/html\n' "$ADMIN_PASSWORD" | sudo tee /etc/cloxin/site.env >/dev/null
             sudo chmod 600 /etc/cloxin/site.env
-            sudo install -o root -g root -m 644 /var/www/html/server.mjs /opt/cloxin/server.mjs
-            sudo install -o root -g root -m 644 /var/www/html/cloxin-site.service.example /etc/systemd/system/cloxin-site.service
-            sudo rm -f /var/www/html/server.mjs
+            sudo install -o root -g root -m 644 /tmp/cloxin-release/server/server.mjs /opt/cloxin/server.mjs
+            sudo install -o root -g root -m 644 /tmp/cloxin-release/server/admin.html /opt/cloxin/admin.html
+            sudo install -o root -g root -m 644 /tmp/cloxin-release/deploy/cloxin-site.service.example /etc/systemd/system/cloxin-site.service
+            if [ -f /var/www/html/index.html ]; then sudo rm -rf /var/www/html/public; fi
+            sudo rm -rf /var/www/html/.git /var/www/html/.github /var/www/html/server /var/www/html/deploy /var/www/html/docs
+            sudo rm -f /var/www/html/server.mjs /var/www/html/admin.html /var/www/html/deploy.bat /var/www/html/VPS-SETUP.md /var/www/html/music.mp3 /var/www/html/nginx.conf.example /var/www/html/cloxin-site.service.example
             sudo systemctl disable --now cloxin-bot.service 2>/dev/null || true
             sudo rm -f /etc/systemd/system/cloxin-bot.service
             sudo systemctl daemon-reload
             sudo node --check /opt/cloxin/server.mjs
             sudo systemctl enable --now cloxin-site.service
             sudo systemctl restart cloxin-site.service
-            sudo cp /var/www/html/nginx.conf.example /etc/nginx/sites-available/cloxin
+            sudo cp /tmp/cloxin-release/deploy/nginx.conf.example /etc/nginx/sites-available/cloxin
             sudo ln -sfn /etc/nginx/sites-available/cloxin /etc/nginx/sites-enabled/cloxin
             sudo nginx -t
             sudo systemctl reload nginx
