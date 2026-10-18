@@ -1,523 +1,3 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cloxin — Profile</title>
-<style>
-  :root{
-    --bg-0:#4b4b4b;
-    --bg-1:#333333;
-    --card-bg:#3b3b3b;
-    --button-bg:#333333;
-    --border:#626262;
-    --text-0:#f4f5f7;
-    --text-1:#d0d0d0;
-    --text-2:#b0b0b0;
-    --accent:#a0a0a0;
-    --online:#23a55a;
-    --idle:#f0b232;
-    --dnd:#f23f43;
-    --offline:#80848e;
-  }
-
-  *{box-sizing:border-box;}
-
-  html,body{
-    min-height:100vh;
-    background:var(--bg-0);
-    font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-    color:var(--text-0);
-    overflow-x:hidden;
-  }
-
-  body{
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    padding:32px 18px 76px;
-    position:relative;
-  }
-
-  body.admin-preview{
-    height:100vh;
-    min-height:0;
-    padding:0;
-    overflow:hidden;
-  }
-
-  body.admin-preview .card{
-    max-width:100%;
-    padding:30px 20px 24px;
-    transform:none!important;
-  }
-
-  body.admin-preview .music-control,
-  body.admin-preview .view-counter{ display:none; }
-
-  .card{
-    position:relative;
-    z-index:1;
-    width:100%;
-    max-width:380px;
-    padding:40px 28px 32px;
-    border-radius:16px;
-    background:var(--card-bg);
-    border:1px solid var(--border);
-    box-shadow:0 14px 32px rgba(0,0,0,0.22);
-    text-align:center;
-    will-change:transform;
-  }
-
-  .avatar-wrap{
-    position:relative;
-    width:104px;
-    height:104px;
-    margin:0 auto 18px;
-  }
-
-  .avatar-ring{
-    position:absolute;
-    inset:-4px;
-    border-radius:50%;
-    border:2px solid var(--accent);
-  }
-
-  .avatar-inner{
-    position:absolute;
-    inset:0;
-    border-radius:50%;
-    background:var(--bg-1);
-    padding:4px;
-    transition:transform 0.2s ease;
-  }
-
-  .avatar-inner img{
-    width:100%;
-    height:100%;
-    border-radius:50%;
-    object-fit:cover;
-    display:block;
-    background:var(--bg-1);
-  }
-
-  .status-dot{
-    position:absolute;
-    right:-2px;
-    bottom:-2px;
-    width:26px;
-    height:26px;
-    border-radius:50%;
-    background:var(--offline);
-    border:4px solid var(--bg-1);
-    transition:background 0.2s ease;
-  }
-
-  .name{
-    font-family:"Sora","Inter",sans-serif;
-    font-size:22px;
-    font-weight:600;
-    letter-spacing:-0.01em;
-    margin:0 0 2px;
-  }
-
-  .tag{
-    font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
-    font-size:12px;
-    color:var(--text-2);
-    margin:0 0 14px;
-  }
-
-  .status-line{
-    display:inline-flex;
-    align-items:center;
-    gap:7px;
-    font-size:13px;
-    color:var(--text-1);
-    margin-bottom:16px;
-  }
-
-  .status-line .pip{
-    width:8px;
-    height:8px;
-    border-radius:50%;
-    background:var(--offline);
-    transition:background 0.2s ease;
-  }
-
-  .activity{
-    display:none;
-    align-items:center;
-    gap:10px;
-    text-align:left;
-    background:var(--button-bg);
-    border:1px solid var(--border);
-    border-radius:8px;
-    padding:10px 12px;
-    margin-bottom:16px;
-  }
-
-  .activity.show{ display:flex; }
-
-  .activity img{
-    width:38px;
-    height:38px;
-    border-radius:8px;
-    object-fit:cover;
-    flex-shrink:0;
-  }
-
-  .activity .act-text{ min-width:0; }
-
-  .activity .act-title{
-    font-size:12.5px;
-    color:var(--text-0);
-    font-weight:600;
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
-  }
-
-  .activity .act-sub{
-    font-size:11.5px;
-    color:var(--text-2);
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
-  }
-
-  .bio-wrap{ display:none; }
-  .bio-wrap.show{ display:block; }
-
-  .divider{
-    height:1px;
-    background:var(--border);
-    margin:0 0 16px;
-  }
-
-  .bio{
-    text-align:left;
-    font-size:13.5px;
-    line-height:1.55;
-    color:var(--text-1);
-    margin:0 0 16px;
-  }
-
-  .socials{
-    display:flex;
-    justify-content:center;
-    gap:14px;
-    margin-top:6px;
-  }
-
-  .social-btn{
-    width:46px;
-    height:46px;
-    border-radius:50%;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    background:var(--button-bg);
-    border:1px solid var(--border);
-    color:var(--text-1);
-    transition:transform 0.2s ease, color 0.2s ease, background 0.2s ease;
-  }
-
-  .social-btn svg{ width:20px; height:20px; }
-
-  .social-btn:hover{
-    transform:translateY(-2px);
-    color:var(--text-0);
-    border-color:var(--accent);
-  }
-
-  .social-btn:active{
-    transform:translateY(0);
-  }
-
-  .enter-screen{
-    position:fixed;
-    inset:0;
-    z-index:50;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    flex-direction:column;
-    gap:10px;
-    background:var(--bg-0);
-    cursor:pointer;
-    transition:opacity 0.25s ease;
-  }
-
-  .enter-screen.hide{
-    opacity:0;
-    pointer-events:none;
-  }
-
-  .enter-screen.hide .enter-title{
-    opacity:0;
-  }
-
-  .enter-title{
-    font-family:"Sora","Inter",sans-serif;
-    font-size:15px;
-    font-weight:600;
-    letter-spacing:0.14em;
-    color:var(--text-0);
-    text-transform:uppercase;
-    transition:opacity 0.25s ease;
-  }
-
-  /* ===== Müzik kontrolü ===== */
-  .music-control{
-    position:fixed;
-    left:20px;
-    top:20px;
-    z-index:5;
-    display:flex;
-    align-items:center;
-    gap:10px;
-  }
-
-  .music-toggle{
-    position:relative;
-    flex-shrink:0;
-    opacity:0;
-    pointer-events:none;
-    transition:opacity 0.2s ease, transform 0.15s ease;
-  }
-
-  .music-toggle.show{
-    opacity:1;
-    pointer-events:auto;
-  }
-
-  .music-toggle:hover{
-    transform:translateY(-1px);
-  }
-
-  .music-toggle.playing{
-    border-color:#b0b0b0;
-  }
-
-  /* Ses durumu */
-  .eq-bars{
-    display:flex;
-    align-items:flex-end;
-    justify-content:center;
-    gap:2.5px;
-    width:20px;
-    height:18px;
-  }
-
-  .eq-bars span{
-    display:block;
-    width:3px;
-    border-radius:2px;
-    background:currentColor;
-    height:8px;
-  }
-
-  .music-toggle .mute-icon{
-    display:none;
-    width:20px;
-    height:20px;
-  }
-
-  .music-toggle.muted .eq-bars{ display:none; }
-  .music-toggle.muted .mute-icon{ display:block; }
-
-  /* ===== Ses seviyesi kaydırıcısı ===== */
-  .volume-wrap{
-    display:flex;
-    align-items:center;
-    height:46px;
-    padding:0 16px 0 4px;
-    border-radius:8px;
-    background:var(--button-bg);
-    border:1px solid var(--border);
-    max-width:0;
-    padding-left:0;
-    padding-right:0;
-    opacity:0;
-    overflow:hidden;
-    pointer-events:none;
-    transition:max-width 0.2s ease, opacity 0.2s ease;
-  }
-
-  .music-control.expanded .volume-wrap{
-    max-width:150px;
-    padding:0 18px 0 16px;
-    opacity:1;
-    pointer-events:auto;
-  }
-
-  .volume-slider{
-    -webkit-appearance:none;
-    appearance:none;
-    width:110px;
-    height:4px;
-    border-radius:2px;
-    background:linear-gradient(to right, var(--accent) 0%, var(--accent) var(--vol,30%), #777777 var(--vol,30%), #777777 100%);
-    outline:none;
-    cursor:pointer;
-  }
-
-  .volume-slider::-webkit-slider-thumb{
-    -webkit-appearance:none;
-    appearance:none;
-    width:13px;
-    height:13px;
-    border-radius:50%;
-    background:var(--text-0);
-    cursor:pointer;
-  }
-
-  .volume-slider::-moz-range-track{
-    height:4px;
-    border-radius:2px;
-    background:rgba(255,255,255,0.14);
-  }
-
-  .volume-slider::-moz-range-progress{
-    height:4px;
-    border-radius:2px;
-    background:#dddddd;
-  }
-
-  .volume-slider::-moz-range-thumb{
-    width:13px;
-    height:13px;
-    border:none;
-    border-radius:50%;
-    background:var(--text-0);
-    cursor:pointer;
-  }
-
-  /* ===== Mobil düzen — müzik kontrolü kartla çakışmasın diye alta sabitlenir ===== */
-  @media (max-width:480px){
-    body{ padding:24px 16px 84px; }
-
-    .music-control{ left:12px; top:12px; gap:8px; }
-
-    .music-control .music-toggle{
-      width:42px;
-      height:42px;
-    }
-
-    .music-control .music-toggle svg,
-    .music-control .eq-bars{
-      transform:scale(0.92);
-    }
-
-    .volume-wrap{
-      height:42px;
-    }
-
-    .music-control.expanded .volume-wrap{
-      max-width:130px;
-      padding:0 14px 0 14px;
-    }
-
-    .volume-slider{ width:92px; }
-
-    .card{
-      max-width:100%;
-      padding:34px 22px 26px;
-    }
-  }
-
-  .view-counter{
-    position:fixed;
-    left:16px;
-    bottom:16px;
-    z-index:4;
-    display:flex;
-    align-items:center;
-    gap:8px;
-    padding:7px 9px;
-    border:1px solid var(--border);
-    border-radius:6px;
-    background:var(--button-bg);
-    color:var(--accent);
-  }
-
-  .view-counter svg{
-    width:18px;
-    height:18px;
-    fill:none;
-    stroke:currentColor;
-    stroke-width:1.8;
-  }
-
-  .view-counter span{
-    min-width:1ch;
-    font:600 13px "SFMono-Regular",Consolas,monospace;
-  }
-</style>
-</head>
-<body>
-
-<audio id="bgMusic" src="music.mp3" loop preload="auto"></audio>
-
-<div class="enter-screen" id="enterScreen">
-  <div class="enter-title">Click to Enter</div>
-</div>
-
-<div class="card">
-  <div class="avatar-wrap">
-    <div class="avatar-ring"></div>
-    <div class="avatar-inner">
-      <img id="avatar" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="Discord avatarı">
-    </div>
-    <div class="status-dot" id="statusDot"></div>
-  </div>
-
-  <h1 class="name" id="displayName">Cloxin</h1>
-  <p class="tag" id="userTag">yükleniyor…</p>
-
-  <div class="status-line">
-    <span class="pip" id="statusPip"></span>
-    <span id="statusText">Bağlanıyor…</span>
-  </div>
-
-  <div class="activity" id="activityBox">
-    <img id="activityImg" src="" alt="">
-    <div class="act-text">
-      <div class="act-title" id="activityTitle"></div>
-      <div class="act-sub" id="activitySub"></div>
-    </div>
-  </div>
-
-  <div class="bio-wrap" id="bioWrap">
-    <div class="divider"></div>
-            <p class="bio" id="bioText"></p>
-  </div>
-
-  <div class="socials" id="socials"></div>
-</div>
-
-<div class="music-control" id="musicControl">
-  <button class="social-btn music-toggle" id="musicToggle" type="button" title="Sesi kapat/aç" aria-label="Sesi kapat/aç">
-    <span class="eq-bars" aria-hidden="true">
-      <span></span><span></span><span></span><span></span>
-    </span>
-    <svg class="mute-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-      <path d="M11 5 6 9H2v6h4l5 4V5Z" fill="currentColor" stroke="none"/>
-      <path d="M22 9l-6 6M16 9l6 6"/>
-    </svg>
-  </button>
-  <div class="volume-wrap" id="volumeWrap">
-    <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="30" step="1" title="Ses seviyesi" aria-label="Ses seviyesi">
-  </div>
-</div>
-
-<div class="view-counter" aria-label="Profil görüntülenme sayısı">
-  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
-  <span id="viewCount" aria-live="polite">0</span>
-</div>
-
-<script>
 /* ============================================================
    SOSYAL HESAPLAR — açmak/kapatmak için sadece enabled: true/false yap.
    url alanına kendi profil linkini yaz. Sırayı değiştirmek istersen
@@ -573,8 +53,9 @@ function renderSocials(){
     a.href = s.url;
     a.target = '_blank';
     a.rel = 'noopener';
+    a.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">${s.icon}</svg>`;
     a.title = s.label || s.name;
-    a.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor">${s.icon}</svg>`;
+    a.setAttribute('aria-label', s.label || s.name);
     wrap.appendChild(a);
   });
 }
@@ -595,7 +76,7 @@ let profileSettings = {
 };
 let lastPresenceData = null;
 const isAdminPreview = new URLSearchParams(location.search).get('adminPreview') === '1';
-const STATUS_LABEL = { online:'Çevrimiçi', idle:'Idle', dnd:'Do Not Disturb', offline:'Offline' };
+const STATUS_LABEL = { online:'Çevrimiçi', idle:'Boşta', dnd:'Rahatsız etmeyin', offline:'Çevrimdışı' };
 const STATUS_COLOR = { online:'#23a55a', idle:'#f0b232', dnd:'#f23f43', offline:'#80848e' };
 
 function applyProfileSettings(settings){
@@ -635,7 +116,7 @@ function applyProfileSettings(settings){
   }));
   const currentUser = lastPresenceData?.discord_user;
   document.getElementById('displayName').textContent = profileSettings.displayName || currentUser?.global_name || currentUser?.username || 'Cloxin';
-  document.getElementById('avatar').src = profileSettings.avatarUrl || (currentUser ? avatarUrl(currentUser) : 'https://cdn.discordapp.com/embed/avatars/0.png');
+  setAvatar(profileSettings.avatarUrl || (currentUser ? avatarUrl(currentUser) : 'https://cdn.discordapp.com/embed/avatars/0.png'));
   if(lastPresenceData){
     applyStatus(lastPresenceData.discord_status);
     applyActivity(lastPresenceData);
@@ -682,6 +163,10 @@ function getViewVisitorId(){
   }
 }
 
+function setAvatar(src){
+  document.getElementById('avatar').src = src;
+}
+
 function avatarUrl(user){
   if(user.avatar){
     const ext = user.avatar.startsWith('a_') ? 'gif' : 'png';
@@ -696,6 +181,7 @@ function applyStatus(status){
   const dot = document.getElementById('statusDot');
   const pip = document.getElementById('statusPip');
   dot.style.background = color;
+  document.querySelector('.avatar-wrap').style.setProperty('--status-color', color);
   pip.style.background = color;
   document.getElementById('statusText').textContent = STATUS_LABEL[status] || 'Çevrimdışı';
 }
@@ -744,13 +230,28 @@ function applyActivity(data){
   box.classList.remove('show');
 }
 
+let typedBio = '';
+function typeText(el, text){
+  if(typedBio === text) return;
+  typedBio = text;
+  clearInterval(typeText.timer);
+  if(isAdminPreview || window.matchMedia('(prefers-reduced-motion: reduce)').matches){ el.textContent = text; return; }
+  let i = 0;
+  el.textContent = '';
+  el.classList.add('typing');
+  typeText.timer = setInterval(() => {
+    el.textContent = text.slice(0, ++i);
+    if(i >= text.length){ clearInterval(typeText.timer); el.classList.remove('typing'); }
+  }, 45);
+}
+
 function applyBio(data){
   const wrap = document.getElementById('bioWrap');
   const text = document.getElementById('bioText');
   const kv = data.kv || {};
   const bio = profileSettings.bio || kv.bio || kv.about || '';
   if(bio){
-    text.textContent = bio;
+    typeText(text, bio);
     wrap.classList.add('show');
   }else{
     wrap.classList.remove('show');
@@ -767,7 +268,7 @@ async function loadPresence(){
     const user = data.discord_user;
     lastPresenceData = data;
 
-    document.getElementById('avatar').src = profileSettings.avatarUrl || avatarUrl(user);
+    setAvatar(profileSettings.avatarUrl || avatarUrl(user));
     document.getElementById('displayName').textContent = profileSettings.displayName || user.global_name || user.username;
     document.getElementById('userTag').textContent = '@' + user.username;
 
@@ -804,9 +305,17 @@ function setupMusicAndEnter(){
       musicStarted = true;
     }
     enterScreen.classList.add('hide');
+    document.body.classList.add('entered');
     musicToggle.classList.add('show', 'playing');
     musicControl.classList.add('expanded');
     setTimeout(() => enterScreen.remove(), 700);
+  });
+
+  enterScreen.addEventListener('keydown', event => {
+    if(event.key === 'Enter' || event.key === ' '){
+      event.preventDefault();
+      enterScreen.click();
+    }
   });
 
   // Düğme: sesi tamamen kapat/aç (mute toggle)
@@ -846,7 +355,7 @@ function setupCardParallax(){
   if(!card) return;
   if(window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-  const MAX_SHIFT = 28;
+  const MAX_SHIFT = 6;
   const EASE = 0.12;
 
   let targetX = 0, targetY = 0, curX = 0, curY = 0, raf = null;
@@ -873,7 +382,7 @@ function setupCardParallax(){
     const shiftY = curY * MAX_SHIFT;
 
     card.style.transform =
-      `translate3d(${shiftX.toFixed(1)}px, ${shiftY.toFixed(1)}px, 0)`;
+      `perspective(900px) rotateX(${(-curY * 5).toFixed(2)}deg) rotateY(${(curX * 5).toFixed(2)}deg) translate3d(${shiftX.toFixed(1)}px, ${shiftY.toFixed(1)}px, 0)`;
 
     if(Math.abs(targetX - curX) > 0.001 || Math.abs(targetY - curY) > 0.001){
       raf = requestAnimationFrame(tick);
@@ -890,7 +399,7 @@ async function startSite(){
   await loadProfileSettings();
   renderSocials();
   if(isAdminPreview){
-    document.body.classList.add('admin-preview');
+    document.body.classList.add('admin-preview', 'entered');
     document.documentElement.style.overflow = 'hidden';
     document.getElementById('enterScreen').remove();
     document.getElementById('musicControl').remove();
@@ -916,6 +425,3 @@ window.addEventListener('message', event => {
 });
 
 startSite();
-</script>
-</body>
-</html>

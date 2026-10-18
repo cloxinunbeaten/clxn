@@ -6,7 +6,10 @@ import { fileURLToPath } from 'node:url';
 
 const host = '127.0.0.1';
 const port = Number(process.env.PORT || 8787);
-const webRoot = path.resolve(process.env.WEB_ROOT || path.dirname(fileURLToPath(import.meta.url)));
+const serverDirectory = path.dirname(fileURLToPath(import.meta.url));
+const webRoot = path.resolve(process.env.WEB_ROOT || path.join(serverDirectory, '..', 'public'));
+const adminFile = path.join(serverDirectory, 'admin.html');
+const legacyAliases = { 'music.mp3': 'assets/music.mp3' };
 const settingsFile = process.env.SITE_SETTINGS_FILE || '/var/lib/cloxin/site-settings.json';
 const viewsFile = process.env.VIEW_COUNT_FILE || '/var/lib/cloxin/views.json';
 const uploadsDirectory = path.join(path.dirname(settingsFile), 'uploads');
@@ -17,7 +20,6 @@ const musicUploadLimit = 20 * 1024 * 1024;
 const sessions = new Map();
 const loginAttempts = new Map();
 const allowedIcons = new Set(['discord', 'github', 'instagram', 'tiktok', 'twitter', 'youtube', 'link']);
-const blockedPublicFiles = new Set(['admin.html', 'cloxin-site.service.example', 'nginx.conf.example', 'server.mjs', 'VPS-SETUP.md']);
 const contentTypes = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
@@ -37,7 +39,7 @@ const defaults = {
   displayName: '',
   bio: '',
   avatarUrl: '',
-  musicUrl: 'music.mp3',
+  musicUrl: 'assets/music.mp3',
   volume: 30,
   colors: {
     background: '#4b4b4b',
@@ -203,20 +205,16 @@ async function serveStatic(request, response, pathname) {
 
   let relativePath;
   try {
-    relativePath = pathname === '/' ? 'index.html' : pathname === '/admin' ? 'admin.html' : decodeURIComponent(pathname).slice(1);
+    relativePath = pathname === '/' ? 'index.html' : decodeURIComponent(pathname).slice(1);
   } catch {
     sendJson(response, 400, { error: 'Invalid path' });
     return true;
   }
 
-  if (blockedPublicFiles.has(relativePath) && pathname !== '/admin') {
-    sendJson(response, 404, { error: 'Not found' });
-    return true;
-  }
-
+  const isAdmin = pathname === '/admin';
   const isUploadedMusic = pathname === '/uploads/background.mp3';
-  const filePath = isUploadedMusic ? uploadedMusicFile : path.resolve(webRoot, relativePath);
-  if (!isUploadedMusic && (!filePath.startsWith(`${webRoot}${path.sep}`) || relativePath.split(/[\\/]/).some(part => part.startsWith('.')))) {
+  const filePath = isAdmin ? adminFile : isUploadedMusic ? uploadedMusicFile : path.resolve(webRoot, legacyAliases[relativePath] || relativePath);
+  if (!isAdmin && !isUploadedMusic && (!filePath.startsWith(`${webRoot}${path.sep}`) || relativePath.split(/[\\/]/).some(part => part.startsWith('.')))) {
     sendJson(response, 404, { error: 'Not found' });
     return true;
   }
