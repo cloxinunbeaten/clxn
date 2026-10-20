@@ -89,6 +89,17 @@ const defaults = {
   avatarUrl: '',
   musicUrl: 'assets/music.mp3',
   volume: 30,
+  videoEnabled: true,
+  videoUrl: 'assets/bg.mp4',
+  cursorEnabled: true,
+  cursorUrl: '',
+  snowEnabled: true,
+  snowAmount: 50,
+  clickSound: true,
+  clickVolume: 35,
+  cardOpacity: 0,
+  cardBlur: 0,
+  enterText: 'click to enter...',
   colors: {
     background: '#4b4b4b',
     card: '#3b3b3b',
@@ -143,6 +154,15 @@ function safeMusicUrl(value) {
   return safeHttpsUrl(result);
 }
 
+function clampInt(value, min, max, fallback) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.min(max, Math.max(min, Math.round(number))) : fallback;
+}
+
+function boolOr(value, fallback) {
+  return typeof value === 'boolean' ? value : fallback;
+}
+
 function normalizeSettings(input = {}) {
   const colors = input.colors && typeof input.colors === 'object' ? input.colors : {};
   const links = Array.isArray(input.socials) ? input.socials.slice(0, 12) : defaults.socials;
@@ -154,6 +174,17 @@ function normalizeSettings(input = {}) {
     avatarUrl: safeHttpsUrl(input.avatarUrl),
     musicUrl: safeMusicUrl(input.musicUrl || defaults.musicUrl) || defaults.musicUrl,
     volume: Number.isFinite(Number(input.volume)) ? Math.min(100, Math.max(0, Math.round(Number(input.volume)))) : defaults.volume,
+    videoEnabled: boolOr(input.videoEnabled, defaults.videoEnabled),
+    videoUrl: safeMusicUrl(input.videoUrl || defaults.videoUrl) || defaults.videoUrl,
+    cursorEnabled: boolOr(input.cursorEnabled, defaults.cursorEnabled),
+    cursorUrl: safeMusicUrl(input.cursorUrl || ''),
+    snowEnabled: boolOr(input.snowEnabled, defaults.snowEnabled),
+    snowAmount: clampInt(input.snowAmount, 0, 100, defaults.snowAmount),
+    clickSound: boolOr(input.clickSound, defaults.clickSound),
+    clickVolume: clampInt(input.clickVolume, 0, 100, defaults.clickVolume),
+    cardOpacity: clampInt(input.cardOpacity, 0, 100, defaults.cardOpacity),
+    cardBlur: clampInt(input.cardBlur, 0, 40, defaults.cardBlur),
+    enterText: safeText(input.enterText, 40) || defaults.enterText,
     colors: Object.fromEntries(Object.entries(defaults.colors).map(([key, fallback]) => [
       key,
       /^#[\da-f]{6}$/i.test(colors[key] || '') ? colors[key] : fallback

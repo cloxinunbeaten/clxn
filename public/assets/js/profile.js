@@ -79,6 +79,24 @@ const isAdminPreview = new URLSearchParams(location.search).get('adminPreview') 
 const STATUS_LABEL = { online:'Çevrimiçi', idle:'Boşta', dnd:'Rahatsız etmeyin', offline:'Çevrimdışı' };
 const STATUS_COLOR = { online:'#23a55a', idle:'#f0b232', dnd:'#f23f43', offline:'#80848e' };
 
+function applyCursorSetting(){
+  let tag = document.getElementById('cursorStyle');
+  if(!tag){
+    tag = document.createElement('style');
+    tag.id = 'cursorStyle';
+    document.head.appendChild(tag);
+  }
+  const selector = 'html,html body,html body *';
+  if(profileSettings.cursorEnabled === false){
+    tag.textContent = `${selector}{cursor:revert!important;}`;
+  }else if(profileSettings.cursorUrl){
+    const custom = String(profileSettings.cursorUrl).replace(/["\\)]/g, '');
+    tag.textContent = `${selector}{cursor:url("${custom}") 16 16,auto!important;}`;
+  }else{
+    tag.textContent = '';   // varsayılan: profile.css içindeki guns.lol imleci
+  }
+}
+
 function applyProfileSettings(settings){
   profileSettings = {
     ...profileSettings,
@@ -102,6 +120,13 @@ function applyProfileSettings(settings){
   }
   document.documentElement.style.setProperty('--bg-1', profileSettings.colors.button);
   document.documentElement.style.setProperty('--text-2', profileSettings.colors.muted);
+
+  const rootStyle = document.documentElement.style;
+  rootStyle.setProperty('--card-alpha', String((profileSettings.cardOpacity ?? 0) / 100));
+  rootStyle.setProperty('--card-blur', `${profileSettings.cardBlur ?? 0}px`);
+  const enterTitle = document.querySelector('.enter-title');
+  if(enterTitle && profileSettings.enterText) enterTitle.textContent = profileSettings.enterText;
+  applyCursorSetting();
 
   document.getElementById('bgMusic').src = profileSettings.musicUrl || 'music.mp3';
   document.getElementById('bgMusic').volume = profileSettings.volume / 100;
@@ -399,9 +424,13 @@ function setupBackgroundVideo(){
   const video = document.getElementById('bgVideo');
   if(!video) return;
   const root = document.documentElement;
-  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+  if(profileSettings.videoEnabled === false || window.matchMedia('(prefers-reduced-motion: reduce)').matches){
     video.remove();
     return;
+  }
+  const wantedSrc = profileSettings.videoUrl || 'assets/bg.mp4';
+  if(new URL(wantedSrc, location.href).href !== video.src){
+    video.src = wantedSrc;
   }
   // Video dosyası yoksa/yüklenemezse eski gradient arka plan kalır.
   function onFail(){ video.remove(); root.classList.remove('has-video'); }
@@ -425,6 +454,8 @@ function setupBackgroundVideo(){
 }
 
 function setupSnow(){
+  const amount = Number(profileSettings.snowAmount ?? 50);
+  if(profileSettings.snowEnabled === false || amount <= 0) return;
   if(window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const canvas = document.createElement('canvas');
   canvas.className = 'snow-canvas';
@@ -459,7 +490,7 @@ function setupSnow(){
     canvas.width = Math.round(w * dpr);
     canvas.height = Math.round(h * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const target = Math.max(12, Math.min(30, Math.round(w * h / 90000)));   // hafif kar
+    const target = Math.max(4, Math.min(120, Math.round(w * h / 90000 * amount / 50)));   // hafif kar
     while(flakes.length < target) flakes.push(makeFlake(true));
     flakes.length = target;
   }
@@ -517,7 +548,7 @@ function setupSnow(){
 
 // ===== Tıklama sesi =====
 // Ses seviyesi (0 - 1). Kendi sesini kullanmak için public/assets/click.mp3 dosyası ekle.
-const CLICK_VOLUME = 0.35;
+const CLICK_VOLUME = 0.35;   // admin panelden ayarlanamazsa kullanılan varsayılan
 
 function synthClick(ctx, destination, volume, when){
   const t = when === undefined ? ctx.currentTime : when;
@@ -576,21 +607,24 @@ function setupClickSound(){
 
   window.addEventListener('pointerdown', event => {
     if(event.pointerType === 'mouse' && event.button !== 0) return;   // sadece sol tık
+    if(profileSettings.clickSound === false) return;
     if(bgMusic && bgMusic.muted) return;                              // ses kapalıysa tık sesi de kapalı
     const now = performance.now();
     if(now - lastPlay < 40) return;
     lastPlay = now;
+    const volume = profileSettings.clickVolume === undefined ? CLICK_VOLUME : profileSettings.clickVolume / 100;
+    if(volume <= 0) return;
     const c = ensureContext();
     if(c.state === 'suspended') c.resume().catch(() => {});
     if(customBuffer){
       const source = c.createBufferSource();
       const gain = c.createGain();
       source.buffer = customBuffer;
-      gain.gain.value = CLICK_VOLUME;
+      gain.gain.value = volume;
       source.connect(gain).connect(master);
       source.start();
     }else{
-      synthClick(c, master, CLICK_VOLUME);
+      synthClick(c, master, volume);
     }
   }, { capture: true, passive: true });
 }

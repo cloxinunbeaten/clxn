@@ -266,6 +266,53 @@
       </section>
 
       <section class="section">
+        <h2>Görünüm ve efektler</h2>
+        <div class="form-grid">
+          <div class="field full">
+            <label for="enterText">Giriş ekranı yazısı</label>
+            <input id="enterText" type="text" maxlength="40" placeholder="click to enter...">
+          </div>
+          <div class="field">
+            <label for="cardOpacity">Kart koyuluğu: <output id="cardOpacityOutput">0</output>% (0 = şeffaf)</label>
+            <input id="cardOpacity" type="range" min="0" max="100" value="0">
+          </div>
+          <div class="field">
+            <label for="cardBlur">Kart arkası bulanıklık: <output id="cardBlurOutput">0</output> px</label>
+            <input id="cardBlur" type="range" min="0" max="40" value="0">
+          </div>
+          <div class="field">
+            <label><input id="videoEnabled" type="checkbox"> Arka plan videosu</label>
+          </div>
+          <div class="field">
+            <label for="videoUrl">Video yolu veya https adresi</label>
+            <input id="videoUrl" type="text" placeholder="assets/bg.mp4">
+          </div>
+          <div class="field">
+            <label><input id="cursorEnabled" type="checkbox"> Özel imleç</label>
+          </div>
+          <div class="field">
+            <label for="cursorUrl">İmleç görseli (boş = varsayılan)</label>
+            <input id="cursorUrl" type="text" placeholder="https://.../imlec.png (32x32 png)">
+          </div>
+          <div class="field">
+            <label><input id="snowEnabled" type="checkbox"> Kar efekti</label>
+          </div>
+          <div class="field">
+            <label for="snowAmount">Kar yoğunluğu: <output id="snowAmountOutput">50</output>%</label>
+            <input id="snowAmount" type="range" min="0" max="100" value="50">
+          </div>
+          <div class="field">
+            <label><input id="clickSound" type="checkbox"> Tıklama sesi</label>
+          </div>
+          <div class="field">
+            <label for="clickVolume">Tıklama sesi seviyesi: <output id="clickVolumeOutput">35</output>%</label>
+            <input id="clickVolume" type="range" min="0" max="100" value="35">
+          </div>
+        </div>
+        <div class="status">Video, kar ve tık sesi canlı sitede çalışır, önizlemede gösterilmez.</div>
+      </section>
+
+      <section class="section">
         <h2>Profil butonları</h2>
         <div class="social-list" id="socialList"></div>
         <button class="btn" id="addSocialButton" type="button" style="margin-top:12px">Buton ekle</button>
@@ -339,6 +386,19 @@ function createSocialRow(link = {}){
   socialList.appendChild(row);
 }
 
+const EFFECT_FIELDS = [
+  ['enterText', 'text'], ['cardOpacity', 'num'], ['cardBlur', 'num'],
+  ['videoEnabled', 'bool'], ['videoUrl', 'text'], ['cursorEnabled', 'bool'], ['cursorUrl', 'text'],
+  ['snowEnabled', 'bool'], ['snowAmount', 'num'], ['clickSound', 'bool'], ['clickVolume', 'num']
+];
+
+function collectEffects(){
+  return Object.fromEntries(EFFECT_FIELDS.map(([id, type]) => {
+    const input = document.getElementById(id);
+    return [id, type === 'bool' ? input.checked : type === 'num' ? Number(input.value) : input.value.trim()];
+  }));
+}
+
 async function loadSettings(){
   const settings = await api('/api/admin/settings');
   document.getElementById('profileId').value = settings.profileId;
@@ -348,6 +408,12 @@ async function loadSettings(){
   document.getElementById('musicUrl').value = settings.musicUrl;
   document.getElementById('volume').value = settings.volume;
   document.getElementById('volumeOutput').value = settings.volume;
+  EFFECT_FIELDS.forEach(([id, type]) => {
+    const input = document.getElementById(id);
+    if(type === 'bool') input.checked = Boolean(settings[id]); else input.value = settings[id] ?? '';
+    const output = document.getElementById(id + 'Output');
+    if(output) output.value = input.value;
+  });
   document.querySelectorAll('[data-color]').forEach(input => {
     input.value = settings.colors[input.dataset.color];
   });
@@ -365,6 +431,7 @@ function collectSettings(){
     avatarUrl: values.get('avatarUrl'),
     musicUrl: values.get('musicUrl') || 'music.mp3',
     volume: Number(values.get('volume')),
+    ...collectEffects(),
     colors: Object.fromEntries([...document.querySelectorAll('[data-color]')].map(input => [input.dataset.color, input.value])),
     socials: [...socialList.querySelectorAll('.social-row')].map(row => ({
       iconKey: row.querySelector('select').value,
@@ -416,6 +483,16 @@ document.getElementById('settingsForm').addEventListener('submit', async event =
   }catch(error){
     setStatus(saveStatus, error.status === 401 ? 'Oturum süresi doldu. Yeniden giriş yap.' : 'Kaydedilemedi.', true);
   }
+});
+
+EFFECT_FIELDS.forEach(([id]) => {
+  const input = document.getElementById(id);
+  input.addEventListener('input', () => {
+    const output = document.getElementById(id + 'Output');
+    if(output) output.value = input.value;
+    sendPreview();
+  });
+  input.addEventListener('change', sendPreview);
 });
 
 document.getElementById('volume').addEventListener('input', event => {
