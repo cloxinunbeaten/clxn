@@ -515,6 +515,86 @@ function setupSnow(){
   requestAnimationFrame(frame);
 }
 
+// ===== Tıklama sesi =====
+// Ses seviyesi (0 - 1). Kendi sesini kullanmak için public/assets/click.mp3 dosyası ekle.
+const CLICK_VOLUME = 0.35;
+
+function synthClick(ctx, destination, volume, when){
+  const t = when === undefined ? ctx.currentTime : when;
+  const pitch = 1 + (Math.random() - 0.5) * 0.08;   // her tıkta çok hafif farklı ton
+
+  // "tik": hızla alçalan kısa ton
+  const osc = ctx.createOscillator();
+  const oscGain = ctx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(1900 * pitch, t);
+  osc.frequency.exponentialRampToValueAtTime(700 * pitch, t + 0.045);
+  oscGain.gain.setValueAtTime(0.0001, t);
+  oscGain.gain.exponentialRampToValueAtTime(volume, t + 0.003);
+  oscGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
+  osc.connect(oscGain).connect(destination);
+  osc.start(t);
+  osc.stop(t + 0.07);
+
+  // mekanik "klik" hissi için çok kısa gürültü patlaması
+  const length = Math.floor(ctx.sampleRate * 0.02);
+  const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for(let i = 0; i < length; i++){
+    data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 3);
+  }
+  const noise = ctx.createBufferSource();
+  noise.buffer = buffer;
+  const highpass = ctx.createBiquadFilter();
+  highpass.type = 'highpass';
+  highpass.frequency.value = 2500;
+  const noiseGain = ctx.createGain();
+  noiseGain.gain.value = volume * 0.6;
+  noise.connect(highpass).connect(noiseGain).connect(destination);
+  noise.start(t);
+}
+
+function setupClickSound(){
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  if(!AudioCtx) return;
+  const bgMusic = document.getElementById('bgMusic');
+  let ctx = null, master = null, customBuffer = null, lastPlay = 0;
+
+  function ensureContext(){
+    if(ctx) return ctx;
+    ctx = new AudioCtx();
+    master = ctx.createGain();
+    master.connect(ctx.destination);
+    // assets/click.mp3 varsa onu kullan, yoksa üretilen ses kalır
+    fetch('assets/click.mp3')
+      .then(response => response.ok ? response.arrayBuffer() : null)
+      .then(buffer => buffer ? ctx.decodeAudioData(buffer) : null)
+      .then(decoded => { if(decoded) customBuffer = decoded; })
+      .catch(() => {});
+    return ctx;
+  }
+
+  window.addEventListener('pointerdown', event => {
+    if(event.pointerType === 'mouse' && event.button !== 0) return;   // sadece sol tık
+    if(bgMusic && bgMusic.muted) return;                              // ses kapalıysa tık sesi de kapalı
+    const now = performance.now();
+    if(now - lastPlay < 40) return;
+    lastPlay = now;
+    const c = ensureContext();
+    if(c.state === 'suspended') c.resume().catch(() => {});
+    if(customBuffer){
+      const source = c.createBufferSource();
+      const gain = c.createGain();
+      source.buffer = customBuffer;
+      gain.gain.value = CLICK_VOLUME;
+      source.connect(gain).connect(master);
+      source.start();
+    }else{
+      synthClick(c, master, CLICK_VOLUME);
+    }
+  }, { capture: true, passive: true });
+}
+
 async function startSite(){
   await loadProfileSettings();
   renderSocials();
@@ -528,6 +608,7 @@ async function startSite(){
   }else{
     setupBackgroundVideo();
     setupSnow();
+    setupClickSound();
     setupMusicAndEnter();
     setupCardParallax();
   }
