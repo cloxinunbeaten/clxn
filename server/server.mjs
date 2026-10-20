@@ -1,4 +1,5 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createReadStream } from 'node:fs';
 import fs from 'node:fs/promises';
 import http from 'node:http';
 import path from 'node:path';
@@ -26,6 +27,8 @@ const contentTypes = {
   '.js': 'text/javascript; charset=utf-8',
   '.mjs': 'text/javascript; charset=utf-8',
   '.mp3': 'audio/mpeg',
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
@@ -33,6 +36,51 @@ const contentTypes = {
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon'
 };
+
+async function streamMedia(request, response, filePath, contentType) {
+  const stat = await fs.stat(filePath);
+  if (!stat.isFile()) {
+    const error = new Error('Not a file');
+    error.code = 'EISDIR';
+    throw error;
+  }
+  const size = stat.size;
+  const headers = {
+    'Content-Type': contentType,
+    'Accept-Ranges': 'bytes',
+    'Cache-Control': 'public, max-age=86400',
+    'X-Content-Type-Options': 'nosniff'
+  };
+  const range = /^bytes=(\d*)-(\d*)$/.exec(request.headers.range || '');
+  let start = 0;
+  let end = size - 1;
+  let status = 200;
+  if (range && (range[1] || range[2])) {
+    if (range[1]) {
+      start = Number(range[1]);
+      if (range[2]) end = Math.min(Number(range[2]), size - 1);
+    } else {
+      start = Math.max(size - Number(range[2]), 0);
+    }
+    if (start > end || start >= size) {
+      response.writeHead(416, { ...headers, 'Content-Range': `bytes */${size}` });
+      response.end();
+      return;
+    }
+    status = 206;
+    headers['Content-Range'] = `bytes ${start}-${end}/${size}`;
+  }
+  headers['Content-Length'] = end - start + 1;
+  response.writeHead(status, headers);
+  if (request.method === 'HEAD') {
+    response.end();
+    return;
+  }
+  const stream = createReadStream(filePath, { start, end });
+  stream.on('error', () => response.destroy());
+  response.on('close', () => stream.destroy());
+  stream.pipe(response);
+}
 
 const defaults = {
   profileId: '1368780659484528702',
@@ -220,6 +268,11 @@ async function serveStatic(request, response, pathname) {
   }
 
   try {
+    const extension = path.extname(filePath).toLowerCase();
+    if (extension === '.mp4' || extension === '.webm') {
+      await streamMedia(request, response, filePath, contentTypes[extension]);
+      return true;
+    }
     const contents = await fs.readFile(filePath);
     response.writeHead(200, {
       'Content-Type': contentTypes[path.extname(filePath).toLowerCase()] || 'application/octet-stream',

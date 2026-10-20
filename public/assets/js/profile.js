@@ -395,6 +395,69 @@ function setupCardParallax(){
   window.addEventListener('mouseleave', onLeave);
 }
 
+function setupBackgroundVideo(){
+  const video = document.getElementById('bgVideo');
+  if(!video) return;
+  const root = document.documentElement;
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    video.remove();
+    return;
+  }
+  // Video dosyası yoksa/yüklenemezse eski gradient arka plan kalır.
+  function onFail(){ video.remove(); root.classList.remove('has-video'); }
+  function onReady(){
+    root.classList.add('has-video');
+    video.play().catch(()=>{});
+  }
+  video.addEventListener('error', onFail, { once: true });
+  video.addEventListener('loadeddata', onReady, { once: true });
+  // Olaylar script çalışmadan önce tetiklenmiş olabilir, mevcut durumu da kontrol et
+  if(video.error) onFail();
+  else if(video.readyState >= 2) onReady();
+  video.muted = true;
+  video.play().catch(()=>{});
+  // Sekme arka plandayken durdur, pil/CPU tasarrufu
+  document.addEventListener('visibilitychange', () => {
+    if(document.hidden) video.pause(); else video.play().catch(()=>{});
+  });
+  // Tarayıcı autoplay'i engellediyse ilk tıklamada başlat
+  window.addEventListener('pointerdown', () => { if(video.paused) video.play().catch(()=>{}); }, { once: true });
+}
+
+function setupCustomCursor(){
+  if(!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+  const ring = document.createElement('div');
+  ring.className = 'cursor-ring';
+  ring.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(ring);
+
+  let targetX = -100, targetY = -100, x = -100, y = -100, running = false;
+  const interactive = 'a,button,[role="button"],input,.social-btn';
+
+  function tick(){
+    x += (targetX - x) * 0.2;
+    y += (targetY - y) * 0.2;
+    ring.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+    if(Math.abs(targetX - x) > 0.1 || Math.abs(targetY - y) > 0.1){
+      requestAnimationFrame(tick);
+    }else{
+      running = false;
+    }
+  }
+
+  window.addEventListener('mousemove', e => {
+    targetX = e.clientX;
+    targetY = e.clientY;
+    ring.classList.add('visible');
+    ring.classList.toggle('active', !!(e.target.closest && e.target.closest(interactive)));
+    if(!running){ running = true; requestAnimationFrame(tick); }
+  }, { passive: true });
+  window.addEventListener('mousedown', () => ring.classList.add('down'));
+  window.addEventListener('mouseup', () => ring.classList.remove('down'));
+  document.addEventListener('mouseleave', () => ring.classList.remove('visible'));
+  document.addEventListener('mouseenter', () => ring.classList.add('visible'));
+}
+
 async function startSite(){
   await loadProfileSettings();
   renderSocials();
@@ -404,7 +467,10 @@ async function startSite(){
     document.getElementById('enterScreen').remove();
     document.getElementById('musicControl').remove();
     document.getElementById('bgMusic').preload = 'none';
+    document.getElementById('bgVideo')?.remove();
   }else{
+    setupBackgroundVideo();
+    setupCustomCursor();
     setupMusicAndEnter();
     setupCardParallax();
   }
