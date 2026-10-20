@@ -424,38 +424,95 @@ function setupBackgroundVideo(){
   window.addEventListener('pointerdown', () => { if(video.paused) video.play().catch(()=>{}); }, { once: true });
 }
 
-function setupCustomCursor(){
-  if(!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
-  const ring = document.createElement('div');
-  ring.className = 'cursor-ring';
-  ring.setAttribute('aria-hidden', 'true');
-  document.body.appendChild(ring);
+function setupSnow(){
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const canvas = document.createElement('canvas');
+  canvas.className = 'snow-canvas';
+  canvas.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  if(!ctx) return;
 
-  let targetX = -100, targetY = -100, x = -100, y = -100, running = false;
-  const interactive = 'a,button,[role="button"],input,.social-btn';
+  let w = 0, h = 0, dpr = 1, flakes = [], last = performance.now();
 
-  function tick(){
-    x += (targetX - x) * 0.2;
-    y += (targetY - y) * 0.2;
-    ring.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-    if(Math.abs(targetX - x) > 0.1 || Math.abs(targetY - y) > 0.1){
-      requestAnimationFrame(tick);
-    }else{
-      running = false;
-    }
+  function makeFlake(spawnAnywhere){
+    const r = 1.4 + Math.random() * 3.2;
+    return {
+      x: Math.random() * w,
+      y: spawnAnywhere ? Math.random() * h : -10 - Math.random() * 40,
+      r,
+      vy: 14 + r * 7 + Math.random() * 10,          // px/sn, büyük taneler biraz daha hızlı
+      sway: 8 + Math.random() * 18,                   // yan salınım genliği
+      phase: Math.random() * Math.PI * 2,
+      freq: 0.4 + Math.random() * 0.7,
+      alpha: 0.35 + Math.random() * 0.5,
+      rot: Math.random() * Math.PI,
+      vrot: (Math.random() - 0.5) * 0.8,
+      star: r > 2.4                                   // büyükler kar tanesi, küçükler nokta
+    };
   }
 
-  window.addEventListener('mousemove', e => {
-    targetX = e.clientX;
-    targetY = e.clientY;
-    ring.classList.add('visible');
-    ring.classList.toggle('active', !!(e.target.closest && e.target.closest(interactive)));
-    if(!running){ running = true; requestAnimationFrame(tick); }
-  }, { passive: true });
-  window.addEventListener('mousedown', () => ring.classList.add('down'));
-  window.addEventListener('mouseup', () => ring.classList.remove('down'));
-  document.addEventListener('mouseleave', () => ring.classList.remove('visible'));
-  document.addEventListener('mouseenter', () => ring.classList.add('visible'));
+  function resize(){
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    w = window.innerWidth;
+    h = window.innerHeight;
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const target = Math.max(12, Math.min(30, Math.round(w * h / 90000)));   // hafif kar
+    while(flakes.length < target) flakes.push(makeFlake(true));
+    flakes.length = target;
+  }
+
+  function drawStar(f){
+    ctx.save();
+    ctx.translate(f.x, f.y);
+    ctx.rotate(f.rot);
+    ctx.lineWidth = Math.max(0.8, f.r / 3);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    for(let i = 0; i < 3; i++){
+      const angle = i * Math.PI / 3;
+      const dx = Math.cos(angle) * f.r, dy = Math.sin(angle) * f.r;
+      ctx.moveTo(-dx, -dy);
+      ctx.lineTo(dx, dy);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function frame(now){
+    const dt = Math.min((now - last) / 1000, 0.05);
+    last = now;
+    ctx.clearRect(0, 0, w, h);
+    ctx.strokeStyle = '#fff';
+    ctx.fillStyle = '#fff';
+    for(let i = 0; i < flakes.length; i++){
+      const f = flakes[i];
+      f.y += f.vy * dt;
+      f.phase += f.freq * dt;
+      f.x += Math.cos(f.phase) * f.sway * dt;
+      f.rot += f.vrot * dt;
+      if(f.y > h + 12 || f.x < -20 || f.x > w + 20){
+        flakes[i] = makeFlake(false);
+        continue;
+      }
+      ctx.globalAlpha = f.alpha;
+      if(f.star){
+        drawStar(f);
+      }else{
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, f.r * 0.7, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+    requestAnimationFrame(frame);
+  }
+
+  window.addEventListener('resize', resize);
+  resize();
+  requestAnimationFrame(frame);
 }
 
 async function startSite(){
@@ -470,7 +527,7 @@ async function startSite(){
     document.getElementById('bgVideo')?.remove();
   }else{
     setupBackgroundVideo();
-    setupCustomCursor();
+    setupSnow();
     setupMusicAndEnter();
     setupCardParallax();
   }
