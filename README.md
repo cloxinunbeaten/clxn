@@ -16,3 +16,4 @@ docs/              VPS kurulum notları
 .github/workflows/ main'e push edilince VPS'e deploy
 deploy.bat         Windows'tan commit + push kısayolu
 ```
+)
