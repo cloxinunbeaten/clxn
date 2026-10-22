@@ -93,6 +93,7 @@
   .empty-state{padding:28px 16px;color:var(--dim);text-align:center;}
 
   .flag{width:20px;height:14px;object-fit:cover;border-radius:2px;box-shadow:0 0 0 1px rgba(255,255,255,.12);flex:none;}
+  .flag-emoji{display:inline-block;width:20px;font-size:14px;line-height:14px;text-align:center;flex:none;}
   .flag-ph{display:inline-block;width:20px;height:14px;border-radius:2px;background:var(--line);flex:none;}
 
   .table-wrap{overflow-x:auto;}
@@ -239,10 +240,23 @@ function el(tag, props = {}, children = []) {
   return node;
 }
 
+function emojiFlag(cc) {
+  const base = 0x1F1E6 - 65;
+  return String.fromCodePoint(...cc.toUpperCase().split('').map(char => base + char.charCodeAt(0)));
+}
+
 function flag(cc) {
   if (!/^[a-z]{2}$/i.test(cc || '')) return el('span', { class: 'flag-ph', title: 'Unknown' });
-  const img = el('img', { class: 'flag', alt: cc.toUpperCase(), title: cc.toUpperCase(), loading: 'lazy', src: `${FLAG_BASE}${cc.toLowerCase()}.png` });
-  img.addEventListener('error', () => img.replaceWith(el('span', { class: 'flag-ph', title: cc.toUpperCase() })));
+  const code = cc.toLowerCase();
+  const img = el('img', { class: 'flag', alt: cc.toUpperCase(), title: cc.toUpperCase(), referrerpolicy: 'no-referrer', src: `${FLAG_BASE}${code}.png` });
+  img.addEventListener('error', () => {
+    if (!img.dataset.proxied) {
+      img.dataset.proxied = '1';
+      img.src = `/api/admin/traffic/flag/${code}.png`;
+      return;
+    }
+    img.replaceWith(el('span', { class: 'flag-emoji', title: cc.toUpperCase(), text: emojiFlag(cc) }));
+  });
   return img;
 }
 

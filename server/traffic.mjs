@@ -147,7 +147,9 @@ export function createTraffic({ file }) {
           const geo = normalizeGeo(ip, await response.json(), 'ip-api');
           if (geo) return geo;
         }
-      } catch {}
+      } catch (error) {
+        console.error('ip-api lookup failed:', error.message);
+      }
     }
     try {
       const response = await fetch(`https://ipapi.co/${encodeURIComponent(ip)}/json/`, { signal: AbortSignal.timeout(4000), headers: { 'User-Agent': 'cloxin-traffic/1.0' } });
@@ -168,6 +170,42 @@ export function createTraffic({ file }) {
     }).finally(() => geoInflight.delete(ip));
     geoInflight.set(ip, pending);
     return pending;
+  }
+
+  function applyGeo(ip, geo) {
+    if (!geo) return;
+    for (const row of records) {
+      if (row.ip !== ip) continue;
+      if (!row.cc && geo.countryCode) row.cc = geo.countryCode;
+      if (!row.as && (geo.asName || geo.isp)) row.as = geo.asName || geo.isp;
+    }
+  }
+
+  function backfill(ips) {
+    for (const ip of ips.slice(0, 10)) {
+      if (isPrivateIp(ip) || geoInflight.has(ip)) continue;
+      lookupIp(ip).then(geo => applyGeo(ip, geo)).catch(() => {});
+    }
+  }
+
+  const flagCache = new Map();
+  async function flag(cc) {
+    if (!/^[a-z]{2}$/i.test(cc || '')) return null;
+    const code = cc.toLowerCase();
+    if (flagCache.has(code)) return flagCache.get(code);
+    try {
+      const response = await fetch(`https://browserleaks.com/img/flags/${code}.png`, {
+        signal: AbortSignal.timeout(5000),
+        headers: { 'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36', Referer: 'https://browserleaks.com/' }
+      });
+      if (!response.ok || !(response.headers.get('content-type') || '').startsWith('image/')) return null;
+      const buffer = Buffer.from(await response.arrayBuffer());
+      if (buffer.length > 200 * 1024) return null;
+      flagCache.set(code, buffer);
+      return buffer;
+    } catch {
+      return null;
+    }
   }
 
   async function record({ ip, userAgent, host, pathname, countryHint }) {
@@ -251,6 +289,8 @@ export function createTraffic({ file }) {
       if (row.t >= rangeStart && row.cc && ips.has(row.ip) && !ipCountry.has(row.ip)) ipCountry.set(row.ip, row.cc);
     }
 
+    backfill([...new Set([...ips.keys()].filter(ip => !ipCountry.has(ip)))]);
+
     const count = since => { let n = 0; const u = new Set(); for (let i = records.length - 1; i >= 0 && records[i].t >= since; i -= 1) { n += 1; u.add(records[i].ip); } return { visits: n, unique: u.size }; };
 
     return {
@@ -278,13 +318,15 @@ export function createTraffic({ file }) {
   async function ipDetails(rawIp) {
     const ip = normalizeIp(rawIp);
     if (ip === 'unknown') return null;
+    const geo = await lookupIp(ip).catch(() => null);
+    applyGeo(ip, geo);
     const visits = records.filter(row => row.ip === ip);
     const userAgents = new Map();
     for (const row of visits) bump(userAgents, row.ua);
     return {
       ip,
       private: isPrivateIp(ip),
-      geo: await lookupIp(ip).catch(() => null),
+      geo,
       stats: {
         visits: visits.length,
         firstSeen: visits[0]?.t || null,
@@ -295,5 +337,5 @@ export function createTraffic({ file }) {
     };
   }
 
-  return { load, record, summary, ipDetails };
+  return { load, record, summary, ipDetails, flag };
 }

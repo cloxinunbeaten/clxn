@@ -487,6 +487,22 @@ async function handleRequest(request, response) {
     return;
   }
 
+  const flagMatch = /^\/api\/admin\/traffic\/flag\/([a-z]{2})\.png$/i.exec(requestUrl.pathname);
+  if (request.method === 'GET' && flagMatch) {
+    if (!hasSession(request)) {
+      sendJson(response, 401, { error: 'Authentication required' });
+      return;
+    }
+    const image = await traffic.flag(flagMatch[1]);
+    if (!image) {
+      sendJson(response, 404, { error: 'Flag not found' });
+      return;
+    }
+    response.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'private, max-age=604800', 'X-Content-Type-Options': 'nosniff' });
+    response.end(image);
+    return;
+  }
+
   if (request.method === 'GET' && requestUrl.pathname === '/api/admin/traffic/ip') {
     if (!hasSession(request)) {
       sendJson(response, 401, { error: 'Authentication required' });
