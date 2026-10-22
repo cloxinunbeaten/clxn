@@ -1,0 +1,82 @@
+name: Deploy profile to VDS
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Validate admin password secret
+        shell: bash
+        env:
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+        run: |
+          if [ -z "$ADMIN_PASSWORD" ]; then
+            echo "::error::Add the ADMIN_PASSWORD repository secret before deploying."
+            exit 1
+          fi
+
+      - name: Copy public site to VDS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VDS_HOST }}
+          username: ${{ secrets.VDS_USER }}
+          key: ${{ secrets.VDS_SSH_KEY }}
+          source: "public/*"
+          target: "/var/www/html"
+          strip_components: 1
+          rm: false
+
+      - name: Copy server and deploy files to VDS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VDS_HOST }}
+          username: ${{ secrets.VDS_USER }}
+          key: ${{ secrets.VDS_SSH_KEY }}
+          source: "server,deploy"
+          target: "/tmp/cloxin-release"
+          rm: true
+
+      - name: Install profile API and admin service
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+        with:
+          host: ${{ secrets.VDS_HOST }}
+          username: ${{ secrets.VDS_USER }}
+          key: ${{ secrets.VDS_SSH_KEY }}
+          envs: ADMIN_PASSWORD
+          script: |
+            if [ -z "$ADMIN_PASSWORD" ]; then echo "Configure the ADMIN_PASSWORD Actions secret before deploying." >&2; exit 1; fi
+            sudo install -d -o www-data -g www-data -m 750 /var/lib/cloxin
+            sudo install -d -m 755 /opt/cloxin /etc/cloxin
+            printf 'ADMIN_PASSWORD=%s\nSITE_SETTINGS_FILE=/var/lib/cloxin/site-settings.json\nVIEW_COUNT_FILE=/var/lib/cloxin/views.json\nWEB_ROOT=/var/www/html\n' "$ADMIN_PASSWORD" | sudo tee /etc/cloxin/site.env >/dev/null
+            sudo chmod 600 /etc/cloxin/site.env
+            sudo install -o root -g root -m 644 /tmp/cloxin-release/server/server.mjs /opt/cloxin/server.mjs
+            sudo install -o root -g root -m 644 /tmp/cloxin-release/server/admin.html /opt/cloxin/admin.html
+            sudo install -o root -g root -m 644 /tmp/cloxin-release/server/traffic.mjs /opt/cloxin/traffic.mjs
+            sudo install -o root -g root -m 644 /tmp/cloxin-release/server/traffic.html /opt/cloxin/traffic.html
+            sudo install -o root -g root -m 644 /tmp/cloxin-release/deploy/cloxin-site.service.example /etc/systemd/system/cloxin-site.service
+            if [ -f /var/www/html/index.html ]; then sudo rm -rf /var/www/html/public; fi
+            sudo rm -rf /var/www/html/.git /var/www/html/.github /var/www/html/server /var/www/html/deploy /var/www/html/docs
+            sudo rm -f /var/www/html/server.mjs /var/www/html/admin.html /var/www/html/deploy.bat /var/www/html/VPS-SETUP.md /var/www/html/music.mp3 /var/www/html/nginx.conf.example /var/www/html/cloxin-site.service.example
+            sudo systemctl disable --now cloxin-bot.service 2>/dev/null || true
+            sudo rm -f /etc/systemd/system/cloxin-bot.service
+            sudo systemctl daemon-reload
+            sudo node --check /opt/cloxin/server.mjs
+            sudo node --check /opt/cloxin/traffic.mjs
+            sudo systemctl enable --now cloxin-site.service
+            sudo systemctl restart cloxin-site.service
+            sudo cp /tmp/cloxin-release/deploy/nginx.conf.example /etc/nginx/sites-available/cloxin
+            sudo ln -sfn /etc/nginx/sites-available/cloxin /etc/nginx/sites-enabled/cloxin
+            sudo nginx -t
+            sudo systemctl reload nginx
+            sudo rm -rf /var/www/html/node_modules
+            sudo rm -f /var/www/html/server.js /var/www/html/package.json /var/www/html/package-lock.json /var/www/html/site-state.json /var/www/html/closed.html /var/www/html/maintenance.html /var/www/html/.env.example
+            sudo rm -f /etc/cloxin/cloxin.env /var/lib/cloxin/site-state.json

@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Cloxin | Admin</title>
+<style>
+  :root{
+    color-scheme:dark;
+    --page:#292929;
+    --panel:#353535;
+    --field:#292929;
+    --line:#555;
+    --text:#f3f3f3;
+    --muted:#b7b7b7;
+    --accent:#c7c7c7;
+    font-family:Segoe UI, sans-serif;
+    color:var(--text);
+    background:var(--page);
+  }
+
+  *{box-sizing:border-box;}
+  body{margin:0;min-height:100vh;padding:32px 16px;background:var(--page);}
+  button,input,select,textarea{font:inherit;}
+  .shell{width:min(100%,1240px);margin:0 auto;}
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px;}
+  h1{margin:0;font-size:22px;}
+  h2{margin:0 0 16px;font-size:16px;}
+  .top-actions{display:flex;align-items:center;gap:12px;}
+  a{color:var(--muted);}
+  .panel{padding:24px;background:var(--panel);border:1px solid var(--line);border-radius:8px;}
+  .login{width:min(100%,420px);margin:14vh auto 0;}
+  .login p{margin:8px 0 20px;color:var(--muted);font-size:14px;}
+  .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}
+  .field{display:grid;gap:7px;min-width:0;}
+  .field.full{grid-column:1/-1;}
+  label,.field-label{font-size:13px;font-weight:600;}
+  input[type="text"],input[type="url"],input[type="password"],input[type="number"],input[type="file"],textarea,select{
+    width:100%;min-width:0;padding:10px 11px;color:var(--text);background:var(--field);border:1px solid var(--line);border-radius:5px;
+  }
+  input[type="color"]{width:48px;height:38px;padding:3px;background:var(--field);border:1px solid var(--line);border-radius:5px;}
+  input[type="range"]{width:100%;accent-color:var(--accent);}
+  textarea{min-height:92px;resize:vertical;}
+  .colors{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;}
+  .color-field{display:flex;align-items:center;gap:8px;min-width:0;}
+  .color-field label{font-size:12px;color:var(--muted);}
+  .section{margin-top:28px;padding-top:22px;border-top:1px solid var(--line);}
+  .social-list{display:grid;gap:10px;}
+  .social-row{display:grid;grid-template-columns:130px minmax(120px,1fr) minmax(180px,2fr) auto auto;align-items:center;gap:8px;}
+  .social-row input[type="checkbox"]{width:18px;height:18px;accent-color:var(--accent);}
+  .workspace{display:grid;grid-template-columns:minmax(300px,360px) minmax(0,1fr);align-items:start;gap:18px;}
+  .preview-panel{position:sticky;top:16px;padding:16px;background:var(--panel);border:1px solid var(--line);border-radius:8px;}
+  .preview-panel h2{margin:0 0 12px;}
+  .preview-frame{display:block;width:100%;height:590px;background:var(--page);border:1px solid var(--line);border-radius:6px;}
+  .btn{min-height:40px;padding:9px 14px;color:var(--text);background:#4a4a4a;border:1px solid #707070;border-radius:5px;cursor:pointer;}
+  .btn:hover{background:#555;}
+  .btn.primary{color:#222;background:#dedede;border-color:#dedede;font-weight:700;}
+  .btn.remove{min-height:36px;padding:6px 10px;}
+  .save-row{display:flex;align-items:center;gap:14px;margin-top:22px;}
+  .status{min-height:20px;color:var(--muted);font-size:13px;}
+  .status.error{color:#ff9b9b;}
+  [hidden]{display:none!important;}
+
+  @media(max-width:900px){
+    .workspace{grid-template-columns:1fr;}
+    .preview-panel{position:static;}
+    .preview-frame{height:540px;}
+  }
+
+  @media(max-width:640px){
+    body{padding:20px 12px;}
+    .panel{padding:18px;}
+    .form-grid{grid-template-columns:1fr;}
+    .field.full{grid-column:auto;}
+    .colors{grid-template-columns:repeat(2,minmax(0,1fr));}
+    .social-row{grid-template-columns:1fr 1fr;}
+    .social-row input[type="url"]{grid-column:1/-1;}
+    .preview-frame{height:500px;}
+    .topbar{align-items:flex-start;}
+    .top-actions{flex-direction:column;align-items:flex-end;gap:8px;}
+  }
+
+  :root{
+    color-scheme:dark;
+    --page:#0c1712;
+    --panel:#12231a;
+    --panel-raised:#172b20;
+    --field:#0c1912;
+    --line:#294436;
+    --line-strong:#3a5d48;
+    --text:#e8f0e9;
+    --muted:#9aafa0;
+    --accent:#85d6a5;
+    --accent-soft:#193d2a;
+    font-family:"Segoe UI Variable", "Segoe UI", sans-serif;
+    color:var(--text);
+    background:var(--page);
+  }
+
+  html{min-height:100%;background:var(--page);}
+  body{min-height:100vh;padding:26px 24px 44px;background:linear-gradient(180deg,#101d16 0%,var(--page) 380px);}
+  .shell{width:min(100%,1500px);}
+  .topbar{margin-bottom:22px;padding:14px 4px 20px;background:transparent;border:0;border-bottom:1px solid var(--line);border-radius:0;box-shadow:none;}
+  .brand-lockup{display:flex;align-items:center;gap:13px;}
+  .brand-mark{display:grid;place-items:center;width:44px;height:44px;color:#082016;background:var(--accent);border-radius:10px;}
+  .brand-mark svg{width:23px;height:23px;}
+  .brand-copy{display:grid;gap:3px;}
+  .eyebrow{color:var(--accent);font-size:10px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;}
+  h1{font-size:20px;font-weight:700;line-height:1.2;}
+  h2{font-size:15px;font-weight:700;}
+  .top-actions{gap:15px;}
+  .top-actions a{color:var(--muted);text-decoration:none;font-size:13px;font-weight:650;}
+  .top-actions a:hover{color:var(--accent);}
+  .top-actions a.nav-btn{display:inline-flex;align-items:center;min-height:40px;padding:9px 14px;color:var(--text);border:1px solid #707070;border-radius:5px;background:#4a4a4a;}
+  .top-actions a.nav-btn:hover{color:var(--text);background:#555;}
+  .session-indicator{display:inline-flex;align-items:center;gap:8px;color:var(--muted);font-size:12px;font-weight:600;}
+  .session-indicator span{width:7px;height:7px;background:#63cf92;border-radius:50%;box-shadow:0 0 0 4px rgba(99,207,146,.11);}
+  .workspace{grid-template-columns:minmax(310px,390px) minmax(0,1fr);gap:22px;}
+  .preview-panel{top:14px;padding:14px;background:#101f17;border:1px solid var(--line);border-radius:10px;box-shadow:0 18px 44px rgba(0,0,0,.2);}
+  .preview-heading{display:flex;align-items:center;justify-content:space-between;margin:2px 3px 13px;}
+  .preview-heading h2{margin:0;color:var(--text);}
+  .live-badge{display:inline-flex;align-items:center;gap:7px;padding:5px 9px;color:#a4e3b9;background:var(--accent-soft);border:1px solid #28563b;border-radius:5px;font-size:9px;font-weight:800;letter-spacing:.09em;}
+  .live-badge span{width:6px;height:6px;background:#6bd595;border-radius:50%;}
+  .preview-frame{height:620px;background:#18271e;border:1px solid var(--line);border-radius:7px;}
+  .settings-panel{padding:0;background:transparent;border:0;border-radius:0;box-shadow:none;}
+  .settings-panel>.form-grid,.settings-panel>.section{padding:20px 22px;background:var(--panel);border:1px solid var(--line);border-radius:9px;box-shadow:0 12px 30px rgba(0,0,0,.12);}
+  .form-grid{gap:16px 15px;}
+  label,.field-label{color:#d1e0d4;font-size:12px;font-weight:700;}
+  input[type="text"],input[type="url"],input[type="password"],input[type="number"],input[type="file"],textarea,select{padding:11px 12px;color:var(--text);background:var(--field);border:1px solid var(--line);border-radius:6px;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;}
+  input:hover,textarea:hover,select:hover{border-color:var(--line-strong);}
+  input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);background:#102219;box-shadow:0 0 0 3px rgba(133,214,165,.12);}
+  input[type="color"]{background:#0c1912;border-color:var(--line-strong);border-radius:6px;}
+  input[type="range"]{accent-color:var(--accent);}
+  textarea{line-height:1.5;}
+  .section{margin-top:13px;padding-top:18px;border-color:var(--line);}
+  .section h2{margin-bottom:14px;color:#e2eee4;}
+  .colors{gap:9px;}
+  .color-field{padding:8px;background:#102018;border:1px solid #233a2c;border-radius:6px;}
+  .color-field label{color:var(--muted);font-size:11px;}
+  .social-list{gap:8px;}
+  .social-row{grid-template-columns:120px minmax(120px,1fr) minmax(180px,2fr) 24px auto;gap:8px;padding:9px;background:#102018;border:1px solid #263e2f;border-radius:7px;}
+  .social-row input[type="checkbox"]{accent-color:var(--accent);}
+  .btn{min-height:38px;padding:8px 13px;color:#dae8dd;background:#1a3023;border:1px solid #35513d;border-radius:6px;font-size:12px;font-weight:700;transition:background .16s ease,border-color .16s ease,transform .16s ease;}
+  .btn:hover{background:#24412f;border-color:#4a6b52;}
+  .btn:active{transform:translateY(1px);}
+  .btn.primary{color:#0a1d11;background:var(--accent);border-color:var(--accent);}
+  .btn.primary:hover{background:#a1e5b8;border-color:#a1e5b8;}
+  .btn.remove{min-height:34px;padding:6px 9px;color:#f2b2a9;background:#311d1a;border-color:#57302a;}
+  .btn.remove:hover{background:#48241e;border-color:#794036;}
+  .save-row{position:sticky;bottom:-26px;z-index:2;margin:20px 0 0;padding:14px 0;background:linear-gradient(180deg,rgba(12,23,18,0),var(--page) 35%);}
+  .status{font-size:12px;}
+  .status.error{color:#ff998d;}
+  .login{padding:30px;background:var(--panel);border:1px solid var(--line-strong);box-shadow:0 24px 70px rgba(0,0,0,.32);}
+  .login h1{margin-top:8px;font-size:22px;}
+  .login p{color:var(--muted);line-height:1.5;}
+  .login .field{gap:11px;}
+
+  @media(max-width:900px){
+    .workspace{grid-template-columns:minmax(0,1fr);}
+    .preview-panel{position:static;}
+    .preview-frame{height:530px;}
+  }
+
+  @media(max-width:640px){
+    body{padding:14px 12px 30px;}
+    .topbar{align-items:center;padding:8px 0 14px;}
+    .top-actions{flex-direction:row;align-items:center;gap:8px;}
+    .session-indicator{display:none;}
+    .brand-mark{width:38px;height:38px;}
+    h1{font-size:16px;}
+    .settings-panel>.form-grid,.settings-panel>.section{padding:16px 14px;}
+    .colors{grid-template-columns:repeat(2,minmax(0,1fr));}
+    .social-row{grid-template-columns:1fr 24px auto;}
+    .social-row select,.social-row input[type="text"]{grid-column:span 1;}
+    .social-row input[type="url"]{grid-column:1/-1;}
+    .save-row{bottom:-14px;padding:12px 0;}
+    .save-row .btn{white-space:nowrap;}
+    .preview-frame{height:480px;}
+  }
+</style>
+</head>
+<body>
+<main class="shell">
+  <section class="panel login" id="loginPanel">
+    <div class="brand-lockup">
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 7.5A8 8 0 1 0 19 16.5"/><path d="M14 12h7"/></svg></span>
+      <div class="brand-copy"><span class="eyebrow">PROFILE STUDIO</span><h1>Cloxin Admin</h1></div>
+    </div>
+    <p>Yönetim paneline giriş yap.</p>
+    <form id="loginForm" class="field">
+      <label for="password">Parola</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+      <button class="btn primary" type="submit">Giriş yap</button>
+      <div class="status" id="loginStatus" role="status"></div>
+    </form>
+  </section>
+
+  <section id="editorPanel" hidden>
+    <header class="topbar">
+      <div class="brand-lockup">
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 7.5A8 8 0 1 0 19 16.5"/><path d="M14 12h7"/></svg></span>
+        <div class="brand-copy"><span class="eyebrow">PROFILE STUDIO</span><h1>Cloxin Admin</h1></div>
+      </div>
+      <div class="top-actions">
+        <span class="session-indicator"><span></span>Oturum açık</span>
+        <a href="/" rel="noreferrer">Profili aç</a>
+        <a class="btn nav-btn" href="/traffic">Trafik</a>
+        <button class="btn" id="logoutButton" type="button">Çıkış</button>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <aside class="preview-panel">
+        <div class="preview-heading"><h2>Canlı profil</h2><span class="live-badge"><span></span>CANLI</span></div>
+        <iframe class="preview-frame" id="profilePreview" src="/?adminPreview=1" title="Canlı profil kartı" scrolling="no"></iframe>
+      </aside>
+
+    <form class="panel settings-panel" id="settingsForm">
+      <div class="form-grid">
+        <div class="field">
+          <label for="profileId">Discord kullanıcı ID</label>
+          <input id="profileId" name="profileId" type="text" inputmode="numeric" pattern="[0-9]{17,20}" required>
+        </div>
+        <div class="field">
+          <label for="displayName">Görünen ad</label>
+          <input id="displayName" name="displayName" type="text" maxlength="60" placeholder="Discord adını kullan">
+        </div>
+        <div class="field full">
+          <label for="bio">Bio</label>
+          <textarea id="bio" name="bio" maxlength="600"></textarea>
+        </div>
+        <div class="field full">
+          <label for="avatarUrl">Avatar URL</label>
+          <input id="avatarUrl" name="avatarUrl" type="url" placeholder="Discord avatarını kullan">
+        </div>
+      </div>
+
+      <section class="section">
+        <h2>Renkler</h2>
+        <div class="colors">
+          <div class="color-field"><input type="color" data-color="background" aria-label="Arka plan rengi"><label>Arka plan</label></div>
+          <div class="color-field"><input type="color" data-color="card" aria-label="Kart rengi"><label>Kart</label></div>
+          <div class="color-field"><input type="color" data-color="button" aria-label="Buton rengi"><label>Buton</label></div>
+          <div class="color-field"><input type="color" data-color="border" aria-label="Kenarlık rengi"><label>Kenarlık</label></div>
+          <div class="color-field"><input type="color" data-color="text" aria-label="Yazı rengi"><label>Yazı</label></div>
+          <div class="color-field"><input type="color" data-color="muted" aria-label="İkincil yazı rengi"><label>İkincil yazı</label></div>
+          <div class="color-field"><input type="color" data-color="accent" aria-label="Vurgu rengi"><label>Vurgu</label></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Ses</h2>
+        <div class="form-grid">
+          <div class="field">
+            <label for="musicUrl">Müzik URL</label>
+            <input id="musicUrl" name="musicUrl" type="text" placeholder="music.mp3 veya https://...">
+          </div>
+          <div class="field">
+            <label for="volume">Varsayılan ses: <output id="volumeOutput">30</output>%</label>
+            <input id="volume" name="volume" type="range" min="0" max="100" value="30">
+          </div>
+          <div class="field full">
+            <label for="musicFile">Bilgisayardan MP3 yükle</label>
+            <input id="musicFile" type="file" accept=".mp3,audio/mpeg">
+            <div class="status" id="uploadStatus" role="status">En fazla 20 MB</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Görünüm ve efektler</h2>
+        <div class="form-grid">
+          <div class="field full">
+            <label for="enterText">Giriş ekranı yazısı</label>
+            <input id="enterText" type="text" maxlength="40" placeholder="click to enter...">
+          </div>
+          <div class="field">
+            <label for="cardOpacity">Kart koyuluğu: <output id="cardOpacityOutput">0</output>% (0 = şeffaf)</label>
+            <input id="cardOpacity" type="range" min="0" max="100" value="0">
+          </div>
+          <div class="field">
+            <label for="cardBlur">Kart arkası bulanıklık: <output id="cardBlurOutput">0</output> px</label>
+            <input id="cardBlur" type="range" min="0" max="40" value="0">
+          </div>
+          <div class="field">
+            <label><input id="videoEnabled" type="checkbox"> Arka plan videosu</label>
+          </div>
+          <div class="field">
+            <label for="videoUrl">Video yolu veya https adresi</label>
+            <input id="videoUrl" type="text" placeholder="assets/bg.mp4">
+          </div>
+          <div class="field">
+            <label><input id="cursorEnabled" type="checkbox"> Özel imleç</label>
+          </div>
+          <div class="field">
+            <label for="cursorUrl">İmleç görseli (boş = varsayılan)</label>
+            <input id="cursorUrl" type="text" placeholder="https://.../imlec.png (32x32 png)">
+          </div>
+          <div class="field">
+            <label><input id="snowEnabled" type="checkbox"> Kar efekti</label>
+          </div>
+          <div class="field">
+            <label for="snowAmount">Kar yoğunluğu: <output id="snowAmountOutput">50</output>%</label>
+            <input id="snowAmount" type="range" min="0" max="100" value="50">
+          </div>
+          <div class="field">
+            <label><input id="clickSound" type="checkbox"> Tıklama sesi</label>
+          </div>
+          <div class="field">
+            <label for="clickVolume">Tıklama sesi seviyesi: <output id="clickVolumeOutput">35</output>%</label>
+            <input id="clickVolume" type="range" min="0" max="100" value="35">
+          </div>
+        </div>
+        <div class="status">Video, kar ve tık sesi canlı sitede çalışır, önizlemede gösterilmez.</div>
+      </section>
+
+      <section class="section">
+        <h2>Profil butonları</h2>
+        <div class="social-list" id="socialList"></div>
+        <button class="btn" id="addSocialButton" type="button" style="margin-top:12px">Buton ekle</button>
+      </section>
+
+      <div class="save-row">
+        <button class="btn primary" type="submit">Değişiklikleri kaydet</button>
+        <div class="status" id="saveStatus" role="status"></div>
+      </div>
+    </form>
+    </div>
+  </section>
+</main>
+
+<script>
+const loginPanel = document.getElementById('loginPanel');
+const editorPanel = document.getElementById('editorPanel');
+const loginStatus = document.getElementById('loginStatus');
+const saveStatus = document.getElementById('saveStatus');
+const uploadStatus = document.getElementById('uploadStatus');
+const socialList = document.getElementById('socialList');
+const settingsForm = document.getElementById('settingsForm');
+const profilePreview = document.getElementById('profilePreview');
+const iconOptions = ['discord', 'github', 'instagram', 'tiktok', 'twitter', 'youtube', 'link'];
+let previewTimer;
+
+async function api(url, options = {}){
+  const response = await fetch(url, {
+    credentials: 'same-origin',
+    ...options,
+    headers: { ...(options.headers || {}) }
+  });
+  const result = await response.json().catch(() => ({}));
+  if(!response.ok){
+    const error = new Error(result.error || 'İstek başarısız.');
+    error.status = response.status;
+    throw error;
+  }
+  return result;
+}
+
+function showEditor(){
+  loginPanel.hidden = true;
+  editorPanel.hidden = false;
+}
+
+function setStatus(element, text, error = false){
+  element.textContent = text;
+  element.classList.toggle('error', error);
+}
+
+function createSocialRow(link = {}){
+  const row = document.createElement('div');
+  row.className = 'social-row';
+  row.innerHTML = `
+    <select aria-label="Buton simgesi">${iconOptions.map(icon => `<option value="${icon}">${icon}</option>`).join('')}</select>
+    <input type="text" maxlength="24" placeholder="Buton adı" aria-label="Buton adı">
+    <input type="url" placeholder="https://" aria-label="Buton bağlantısı">
+    <input type="checkbox" aria-label="Buton etkin" checked>
+    <button class="btn remove" type="button" aria-label="Butonu kaldır">Kaldır</button>`;
+  row.querySelector('select').value = iconOptions.includes(link.iconKey) ? link.iconKey : 'link';
+  row.querySelector('input[type="text"]').value = link.label || '';
+  row.querySelector('input[type="url"]').value = link.url || '';
+  row.querySelector('input[type="checkbox"]').checked = link.enabled !== false;
+  row.querySelector('.remove').addEventListener('click', () => {
+    row.remove();
+    sendPreview();
+  });
+  row.addEventListener('input', sendPreview);
+  row.addEventListener('change', sendPreview);
+  socialList.appendChild(row);
+}
+
+const EFFECT_FIELDS = [
+  ['enterText', 'text'], ['cardOpacity', 'num'], ['cardBlur', 'num'],
+  ['videoEnabled', 'bool'], ['videoUrl', 'text'], ['cursorEnabled', 'bool'], ['cursorUrl', 'text'],
+  ['snowEnabled', 'bool'], ['snowAmount', 'num'], ['clickSound', 'bool'], ['clickVolume', 'num']
+];
+
+function collectEffects(){
+  return Object.fromEntries(EFFECT_FIELDS.map(([id, type]) => {
+    const input = document.getElementById(id);
+    return [id, type === 'bool' ? input.checked : type === 'num' ? Number(input.value) : input.value.trim()];
+  }));
+}
+
+async function loadSettings(){
+  const settings = await api('/api/admin/settings');
+  document.getElementById('profileId').value = settings.profileId;
+  document.getElementById('displayName').value = settings.displayName;
+  document.getElementById('bio').value = settings.bio;
+  document.getElementById('avatarUrl').value = settings.avatarUrl;
+  document.getElementById('musicUrl').value = settings.musicUrl;
+  document.getElementById('volume').value = settings.volume;
+  document.getElementById('volumeOutput').value = settings.volume;
+  EFFECT_FIELDS.forEach(([id, type]) => {
+    const input = document.getElementById(id);
+    if(type === 'bool') input.checked = Boolean(settings[id]); else input.value = settings[id] ?? '';
+    const output = document.getElementById(id + 'Output');
+    if(output) output.value = input.value;
+  });
+  document.querySelectorAll('[data-color]').forEach(input => {
+    input.value = settings.colors[input.dataset.color];
+  });
+  socialList.replaceChildren();
+  settings.socials.forEach(createSocialRow);
+  sendPreview();
+}
+
+function collectSettings(){
+  const values = new FormData(settingsForm);
+  return {
+    profileId: values.get('profileId'),
+    displayName: values.get('displayName'),
+    bio: values.get('bio'),
+    avatarUrl: values.get('avatarUrl'),
+    musicUrl: values.get('musicUrl') || 'music.mp3',
+    volume: Number(values.get('volume')),
+    ...collectEffects(),
+    colors: Object.fromEntries([...document.querySelectorAll('[data-color]')].map(input => [input.dataset.color, input.value])),
+    socials: [...socialList.querySelectorAll('.social-row')].map(row => ({
+      iconKey: row.querySelector('select').value,
+      label: row.querySelector('input[type="text"]').value,
+      url: row.querySelector('input[type="url"]').value,
+      enabled: row.querySelector('input[type="checkbox"]').checked
+    }))
+  };
+}
+
+function sendPreview(){
+  if(editorPanel.hidden || !profilePreview.contentWindow) return;
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(() => {
+    profilePreview.contentWindow.postMessage({ type: 'cloxin-profile-preview', settings: collectSettings() }, location.origin);
+  }, 100);
+}
+
+document.getElementById('loginForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  setStatus(loginStatus, '');
+  const password = new FormData(event.currentTarget).get('password');
+  try{
+    await api('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
+    });
+    await loadSettings();
+    showEditor();
+    sendPreview();
+  }catch(error){
+    setStatus(loginStatus, error.status === 429 ? 'Çok fazla deneme. Bir süre sonra tekrar dene.' : 'Giriş başarısız.', true);
+  }
+});
+
+document.getElementById('settingsForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  setStatus(saveStatus, 'Kaydediliyor…');
+  const settings = collectSettings();
+  try{
+    await api('/api/admin/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings)
+    });
+    setStatus(saveStatus, 'Kaydedildi. Profil değişiklikleri hemen görünür.');
+    sendPreview();
+  }catch(error){
+    setStatus(saveStatus, error.status === 401 ? 'Oturum süresi doldu. Yeniden giriş yap.' : 'Kaydedilemedi.', true);
+  }
+});
+
+EFFECT_FIELDS.forEach(([id]) => {
+  const input = document.getElementById(id);
+  input.addEventListener('input', () => {
+    const output = document.getElementById(id + 'Output');
+    if(output) output.value = input.value;
+    sendPreview();
+  });
+  input.addEventListener('change', sendPreview);
+});
+
+document.getElementById('volume').addEventListener('input', event => {
+  document.getElementById('volumeOutput').value = event.currentTarget.value;
+  sendPreview();
+});
+
+settingsForm.addEventListener('input', sendPreview);
+settingsForm.addEventListener('change', sendPreview);
+profilePreview.addEventListener('load', sendPreview);
+
+document.getElementById('musicFile').addEventListener('change', async event => {
+  const fileInput = event.currentTarget;
+  const file = fileInput.files?.[0];
+  if(!file) return;
+  if(file.size > 20 * 1024 * 1024){
+    setStatus(uploadStatus, 'Dosya 20 MB sınırını aşıyor.', true);
+    fileInput.value = '';
+    return;
+  }
+
+  setStatus(uploadStatus, 'Yükleniyor…');
+  try{
+    const result = await api('/api/admin/music', {
+      method: 'POST',
+      headers: {
+        'Content-Type': file.type || 'audio/mpeg',
+        'X-File-Name': encodeURIComponent(file.name)
+      },
+      body: file
+    });
+    document.getElementById('musicUrl').value = result.musicUrl;
+    setStatus(uploadStatus, 'MP3 yüklendi.');
+    setStatus(saveStatus, 'Yüklenen müzik profil ayarına uygulandı.');
+    sendPreview();
+  }catch(error){
+    setStatus(uploadStatus, error.status === 413 ? 'Dosya 20 MB sınırını aşıyor.' : 'MP3 yüklenemedi.', true);
+  }finally{
+    fileInput.value = '';
+  }
+});
+
+document.getElementById('addSocialButton').addEventListener('click', () => createSocialRow());
+document.getElementById('logoutButton').addEventListener('click', async () => {
+  await api('/api/admin/logout', { method: 'POST' }).catch(() => {});
+  location.reload();
+});
+
+api('/api/admin/session').then(loadSettings).then(() => {
+  showEditor();
+  sendPreview();
+}).catch(error => {
+  if(error.status !== 401) setStatus(loginStatus, 'Admin servisine ulaşılamıyor.', true);
+});
+</script>
+</body>
+</html>

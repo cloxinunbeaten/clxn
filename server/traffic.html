@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Traffic | Cloxin</title>
+<style>
+  :root{
+    color-scheme:dark;
+    --bg:#000;
+    --panel:#0a0a0a;
+    --panel-2:#111;
+    --line:#242424;
+    --line-strong:#333;
+    --text:#ededed;
+    --muted:#a1a1a1;
+    --dim:#707070;
+    --blue:#0070f3;
+    --blue-soft:rgba(0,112,243,.16);
+    --green:#46a758;
+    --red:#e5484d;
+    --amber:#f5a524;
+    --mono:ui-monospace,SFMono-Regular,"Geist Mono",Menlo,Consolas,monospace;
+    font-family:"Geist","Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;min-height:100%;background:var(--bg);}
+  body{font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+  button{font:inherit;color:inherit;cursor:pointer;}
+  a{color:inherit;text-decoration:none;}
+  [hidden]{display:none!important;}
+
+  .shell{width:min(100%,1240px);margin:0 auto;padding:0 24px 64px;}
+  .header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:28px 0 20px;}
+  .title-row{display:flex;align-items:center;gap:14px;min-width:0;}
+  .back{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;color:var(--muted);border:1px solid var(--line);border-radius:6px;}
+  .back:hover{color:var(--text);border-color:var(--line-strong);background:var(--panel-2);}
+  h1{margin:0;font-size:24px;font-weight:600;letter-spacing:-.02em;}
+  .crumb{color:var(--dim);font-size:13px;}
+  .toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .segmented{display:inline-flex;padding:2px;background:var(--panel);border:1px solid var(--line);border-radius:8px;}
+  .segmented button{padding:5px 14px;color:var(--muted);background:transparent;border:0;border-radius:6px;font-size:13px;font-weight:500;}
+  .segmented button:hover{color:var(--text);}
+  .segmented button[aria-pressed="true"]{color:var(--text);background:var(--line);}
+  .btn{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 12px;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:6px;font-size:13px;font-weight:500;}
+  .btn:hover{background:var(--panel-2);border-color:var(--line-strong);}
+
+  .status-strip{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;padding:12px 16px;background:var(--panel);border:1px solid var(--line);border-radius:8px;}
+  .pulse{display:inline-flex;align-items:center;gap:10px;font-weight:500;}
+  .pulse i{width:8px;height:8px;background:var(--green);border-radius:50%;box-shadow:0 0 0 4px rgba(70,167,88,.16);}
+  .muted{color:var(--muted);}
+  .dim{color:var(--dim);}
+
+  .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:12px;}
+  .stat{padding:16px;background:var(--panel);border:1px solid var(--line);border-radius:8px;}
+  .stat-label{color:var(--muted);font-size:12px;font-weight:500;}
+  .stat-value{margin-top:6px;font-size:26px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
+  .stat-sub{margin-top:2px;color:var(--dim);font-size:12px;}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden;}
+  .card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);}
+  .card-head h2{margin:0;font-size:14px;font-weight:600;}
+  .legend{display:inline-flex;align-items:center;gap:14px;color:var(--muted);font-size:12px;}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .legend i{width:8px;height:8px;border-radius:2px;background:var(--blue);}
+  .legend i.alt{background:#4a4a4a;}
+
+  .chart{position:relative;padding:16px 16px 10px;}
+  .bars{display:flex;align-items:flex-end;gap:4px;height:180px;border-bottom:1px solid var(--line);}
+  .bar-col{position:relative;display:flex;align-items:flex-end;flex:1;min-width:0;height:100%;}
+  .bar{width:100%;min-height:2px;background:var(--blue);border-radius:3px 3px 0 0;transition:opacity .12s;}
+  .bar.empty{background:var(--line);}
+  .bar-col:hover .bar{opacity:.8;}
+  .axis{display:flex;gap:4px;margin-top:8px;color:var(--dim);font-size:11px;}
+  .axis span{flex:1;min-width:0;overflow:hidden;text-align:center;text-overflow:clip;white-space:nowrap;}
+  .tooltip{position:fixed;z-index:30;padding:8px 10px;color:var(--text);background:#000;border:1px solid var(--line-strong);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.6);font-size:12px;pointer-events:none;white-space:nowrap;}
+  .tooltip b{display:block;margin-bottom:2px;font-weight:600;}
+
+  .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px;}
+  .rows{display:grid;}
+  .row{position:relative;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:38px;padding:8px 16px;border-bottom:1px solid var(--line);}
+  .row:last-child{border-bottom:0;}
+  .row .fill{position:absolute;inset:3px 8px 3px 8px;background:var(--blue-soft);border-radius:4px;pointer-events:none;}
+  .row .left{position:relative;display:flex;align-items:center;gap:10px;min-width:0;}
+  .row .left .text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .row .count{position:relative;color:var(--muted);font-variant-numeric:tabular-nums;}
+  .row.clickable{cursor:pointer;}
+  .row.clickable:hover .fill{background:rgba(0,112,243,.26);}
+  .mono{font-family:var(--mono);font-size:13px;}
+  .empty-state{padding:28px 16px;color:var(--dim);text-align:center;}
+
+  .flag{width:20px;height:14px;object-fit:cover;border-radius:2px;box-shadow:0 0 0 1px rgba(255,255,255,.12);flex:none;}
+  .flag-ph{display:inline-block;width:20px;height:14px;border-radius:2px;background:var(--line);flex:none;}
+
+  .table-wrap{overflow-x:auto;}
+  table{width:100%;border-collapse:collapse;min-width:760px;}
+  th{padding:10px 16px;color:var(--muted);font-size:12px;font-weight:500;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap;}
+  td{padding:10px 16px;border-bottom:1px solid var(--line);vertical-align:middle;}
+  tr:last-child td{border-bottom:0;}
+  tbody tr:hover{background:var(--panel-2);}
+  .cell{display:flex;align-items:center;gap:10px;min-width:0;}
+  .ip-link{padding:0;color:var(--text);background:none;border:0;font-family:var(--mono);font-size:13px;text-decoration:underline;text-decoration-color:var(--line-strong);text-underline-offset:3px;}
+  .ip-link:hover{color:var(--blue);text-decoration-color:var(--blue);}
+  .ua-cell{max-width:340px;overflow:hidden;color:var(--muted);text-overflow:ellipsis;white-space:nowrap;}
+  .pill{display:inline-flex;align-items:center;height:20px;padding:0 8px;color:var(--muted);background:var(--panel-2);border:1px solid var(--line);border-radius:999px;font-size:11px;font-weight:500;white-space:nowrap;}
+  .pill.warn{color:var(--amber);border-color:rgba(245,165,36,.4);background:rgba(245,165,36,.08);}
+  .pill.bad{color:var(--red);border-color:rgba(229,72,77,.4);background:rgba(229,72,77,.08);}
+
+  .overlay{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.72);backdrop-filter:blur(2px);}
+  .modal{display:flex;flex-direction:column;width:min(100%,680px);max-height:min(88vh,820px);background:var(--panel);border:1px solid var(--line-strong);border-radius:12px;box-shadow:0 24px 80px rgba(0,0,0,.7);overflow:hidden;}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line);}
+  .modal-title{display:flex;align-items:center;gap:12px;min-width:0;}
+  .modal-title h3{margin:0;font-family:var(--mono);font-size:16px;font-weight:600;overflow-wrap:anywhere;}
+  .icon-btn{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;color:var(--muted);background:transparent;border:0;border-radius:6px;font-size:18px;line-height:1;}
+  .icon-btn:hover{color:var(--text);background:var(--line);}
+  .modal-body{padding:18px 20px 22px;overflow-y:auto;}
+  .section-title{margin:18px 0 8px;color:var(--muted);font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;}
+  .section-title:first-child{margin-top:0;}
+  .kv{display:grid;grid-template-columns:150px minmax(0,1fr);border:1px solid var(--line);border-radius:8px;overflow:hidden;}
+  .kv dt,.kv dd{margin:0;padding:9px 14px;border-bottom:1px solid var(--line);}
+  .kv dt{color:var(--muted);background:var(--panel-2);}
+  .kv dd{overflow-wrap:anywhere;}
+  .kv dt:nth-last-of-type(1),.kv dd:nth-last-of-type(1){border-bottom:0;}
+  .ua-raw{padding:10px 14px;color:var(--muted);background:var(--panel-2);border:1px solid var(--line);border-radius:8px;font-family:var(--mono);font-size:12px;overflow-wrap:anywhere;}
+  .loading{padding:36px;color:var(--dim);text-align:center;}
+  .notice{margin-bottom:14px;padding:10px 14px;color:var(--amber);background:rgba(245,165,36,.08);border:1px solid rgba(245,165,36,.3);border-radius:8px;font-size:13px;}
+
+  @media(max-width:900px){
+    .stats{grid-template-columns:repeat(2,minmax(0,1fr));}
+    .grid{grid-template-columns:1fr;}
+  }
+  @media(max-width:560px){
+    .shell{padding:0 14px 48px;}
+    .header{flex-direction:column;align-items:flex-start;}
+    .kv{grid-template-columns:1fr;}
+    .kv dt{border-bottom:0;padding-bottom:2px;}
+    .kv dd{padding-top:2px;}
+  }
+</style>
+</head>
+<body>
+<main class="shell">
+  <header class="header">
+    <div class="title-row">
+      <a class="back" href="/admin" aria-label="Back to admin panel" title="Back to admin panel">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3 5 8l5 5"/></svg>
+      </a>
+      <div>
+        <div class="crumb">Admin / Traffic</div>
+        <h1>Traffic</h1>
+      </div>
+    </div>
+    <div class="toolbar">
+      <div class="segmented" id="intervalTabs" role="group" aria-label="Aggregation interval">
+        <button type="button" data-interval="day" aria-pressed="true">Daily</button>
+        <button type="button" data-interval="week" aria-pressed="false">Weekly</button>
+        <button type="button" data-interval="month" aria-pressed="false">Monthly</button>
+      </div>
+      <button class="btn" id="refreshButton" type="button">Refresh</button>
+    </div>
+  </header>
+
+  <div class="status-strip">
+    <span class="pulse"><i></i>Logging active</span>
+    <span class="muted" id="updatedAt">Loading…</span>
+  </div>
+
+  <div class="notice" id="errorNotice" hidden></div>
+
+  <section class="stats" aria-label="Visit totals">
+    <div class="stat"><div class="stat-label">Today</div><div class="stat-value" id="statToday">–</div><div class="stat-sub" id="statTodaySub"></div></div>
+    <div class="stat"><div class="stat-label">This week</div><div class="stat-value" id="statWeek">–</div><div class="stat-sub" id="statWeekSub"></div></div>
+    <div class="stat"><div class="stat-label">This month</div><div class="stat-value" id="statMonth">–</div><div class="stat-sub" id="statMonthSub"></div></div>
+    <div class="stat"><div class="stat-label" id="statRangeLabel">Selected range</div><div class="stat-value" id="statRange">–</div><div class="stat-sub" id="statRangeSub"></div></div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <h2 id="chartTitle">Visits</h2>
+      <div class="legend"><span><i></i>Visits</span></div>
+    </div>
+    <div class="chart">
+      <div class="bars" id="bars"></div>
+      <div class="axis" id="axis"></div>
+    </div>
+  </section>
+
+  <div class="grid">
+    <section class="card"><div class="card-head"><h2>Top IPs</h2><span class="dim">Visits</span></div><div class="rows" id="topIps"></div></section>
+    <section class="card"><div class="card-head"><h2>Top Countries</h2><span class="dim">Visits</span></div><div class="rows" id="topCountries"></div></section>
+    <section class="card"><div class="card-head"><h2>Top AS Names</h2><span class="dim">Visits</span></div><div class="rows" id="topAsNames"></div></section>
+    <section class="card"><div class="card-head"><h2>Top User Agents</h2><span class="dim">Visits</span></div><div class="rows" id="topUserAgents"></div></section>
+    <section class="card"><div class="card-head"><h2>Top Hosts</h2><span class="dim">Visits</span></div><div class="rows" id="topHosts"></div></section>
+    <section class="card"><div class="card-head"><h2>Top Request Paths</h2><span class="dim">Visits</span></div><div class="rows" id="topPaths"></div></section>
+  </div>
+
+  <section class="card" style="margin-top:12px">
+    <div class="card-head"><h2>Recent Visits</h2><span class="dim" id="recentMeta"></span></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Time</th><th>IP Address</th><th>Country</th><th>Device</th><th>User Agent</th></tr></thead>
+        <tbody id="recentBody"></tbody>
+      </table>
+    </div>
+    <div class="empty-state" id="recentEmpty" hidden>No visits logged in this time range</div>
+  </section>
+</main>
+
+<div class="tooltip" id="tooltip" hidden></div>
+
+<div class="overlay" id="ipOverlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ipModalTitle">
+    <div class="modal-head">
+      <div class="modal-title" id="ipModalHead"></div>
+      <button class="icon-btn" id="ipClose" type="button" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body" id="ipModalBody"></div>
+  </div>
+</div>
+
+<script>
+const FLAG_BASE = 'https://browserleaks.com/img/flags/';
+const state = { interval: 'day', data: null };
+const $ = id => document.getElementById(id);
+const numberFormat = new Intl.NumberFormat('en-US');
+
+function el(tag, props = {}, children = []) {
+  const node = document.createElement(tag);
+  for (const [key, value] of Object.entries(props)) {
+    if (key === 'class') node.className = value;
+    else if (key === 'text') node.textContent = value;
+    else if (key.startsWith('on')) node.addEventListener(key.slice(2), value);
+    else node.setAttribute(key, value);
+  }
+  for (const child of [].concat(children)) if (child) node.append(child);
+  return node;
+}
+
+function flag(cc) {
+  if (!/^[a-z]{2}$/i.test(cc || '')) return el('span', { class: 'flag-ph', title: 'Unknown' });
+  const img = el('img', { class: 'flag', alt: cc.toUpperCase(), title: cc.toUpperCase(), loading: 'lazy', src: `${FLAG_BASE}${cc.toLowerCase()}.png` });
+  img.addEventListener('error', () => img.replaceWith(el('span', { class: 'flag-ph', title: cc.toUpperCase() })));
+  return img;
+}
+
+const regionNames = (() => { try { return new Intl.DisplayNames(['en'], { type: 'region' }); } catch { return null; } })();
+function countryName(cc) {
+  if (!cc) return 'Unknown';
+  try { return regionNames?.of(cc.toUpperCase()) || cc.toUpperCase(); } catch { return cc.toUpperCase(); }
+}
+
+function parseUserAgent(ua = '') {
+  let browser = 'Unknown';
+  let os = 'Unknown';
+  let device = 'Desktop';
+  const match = (re) => { const m = ua.match(re); return m ? m[1] : ''; };
+  if (/HeadlessChrome/i.test(ua)) browser = `Headless Chrome ${match(/HeadlessChrome\/(\d+)/)}`;
+  else if (/Edg(?:e|A|iOS)?\//.test(ua)) browser = `Edge ${match(/Edg(?:e|A|iOS)?\/(\d+)/)}`;
+  else if (/OPR\/|Opera/.test(ua)) browser = `Opera ${match(/OPR\/(\d+)/)}`;
+  else if (/SamsungBrowser/.test(ua)) browser = `Samsung Internet ${match(/SamsungBrowser\/(\d+)/)}`;
+  else if (/Firefox|FxiOS/.test(ua)) browser = `Firefox ${match(/(?:Firefox|FxiOS)\/(\d+)/)}`;
+  else if (/Chrome|CriOS/.test(ua)) browser = `Chrome ${match(/(?:Chrome|CriOS)\/(\d+)/)}`;
+  else if (/Safari/.test(ua) && /Version\//.test(ua)) browser = `Safari ${match(/Version\/(\d+)/)}`;
+  else if (/^undici/i.test(ua)) browser = 'undici';
+  else if (/curl\//i.test(ua)) browser = `curl ${match(/curl\/([\d.]+)/)}`;
+  else if (ua) browser = ua.split(/[\s/]/)[0].slice(0, 30);
+  if (/Windows NT 10/.test(ua)) os = 'Windows 10/11';
+  else if (/Windows NT/.test(ua)) os = 'Windows';
+  else if (/Android/.test(ua)) os = `Android ${match(/Android ([\d.]+)/)}`.trim();
+  else if (/iPhone|iPad|iPod/.test(ua)) os = `iOS ${match(/OS ([\d_]+)/).replace(/_/g, '.')}`.trim();
+  else if (/Mac OS X/.test(ua)) os = 'macOS';
+  else if (/CrOS/.test(ua)) os = 'ChromeOS';
+  else if (/Linux|X11/.test(ua)) os = 'Linux';
+  if (/iPad|Tablet/.test(ua) || (/Android/.test(ua) && !/Mobile/.test(ua))) device = 'Tablet';
+  else if (/Mobi|iPhone|Android/.test(ua)) device = 'Mobile';
+  else if (/bot|crawler|spider|headless|undici|curl|python|node|go-http/i.test(ua)) device = 'Automated';
+  return { browser: browser.trim(), os: os.trim(), device };
+}
+
+function formatTime(t) {
+  return new Date(t).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function bucketLabel(t, interval) {
+  const date = new Date(t);
+  if (interval === 'month') return date.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' });
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+}
+
+function bucketTitle(t, interval) {
+  const date = new Date(t);
+  if (interval === 'month') return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  if (interval === 'week') return `Week of ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}`;
+  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+}
+
+async function api(url) {
+  const response = await fetch(url, { credentials: 'same-origin', cache: 'no-store' });
+  if (response.status === 401) { location.replace('/admin'); throw new Error('Authentication required'); }
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body.error || 'Request failed');
+  return body;
+}
+
+function renderStats(data) {
+  const { today, week, month, range } = data.totals;
+  $('statToday').textContent = numberFormat.format(today.visits);
+  $('statTodaySub').textContent = `${numberFormat.format(today.unique)} unique IPs`;
+  $('statWeek').textContent = numberFormat.format(week.visits);
+  $('statWeekSub').textContent = `${numberFormat.format(week.unique)} unique IPs`;
+  $('statMonth').textContent = numberFormat.format(month.visits);
+  $('statMonthSub').textContent = `${numberFormat.format(month.unique)} unique IPs`;
+  const spans = { day: 'Last 30 days', week: 'Last 12 weeks', month: 'Last 12 months' };
+  $('statRangeLabel').textContent = spans[data.interval];
+  $('statRange').textContent = numberFormat.format(range.visits);
+  $('statRangeSub').textContent = `${numberFormat.format(range.unique)} unique IPs`;
+}
+
+function renderChart(data) {
+  const bars = $('bars');
+  const axis = $('axis');
+  bars.replaceChildren();
+  axis.replaceChildren();
+  $('chartTitle').textContent = `${data.label} visits`;
+  const max = Math.max(1, ...data.series.map(point => point.count));
+  const every = data.series.length > 12 ? Math.ceil(data.series.length / 8) : 1;
+  data.series.forEach((point, index) => {
+    const col = el('div', { class: 'bar-col' }, el('div', { class: `bar${point.count ? '' : ' empty'}`, style: `height:${point.count ? Math.max(2, (point.count / max) * 100) : 1}%` }));
+    col.addEventListener('mousemove', event => showTooltip(event, point, data.interval));
+    col.addEventListener('mouseleave', hideTooltip);
+    bars.append(col);
+    axis.append(el('span', { text: index % every === 0 || index === data.series.length - 1 ? bucketLabel(point.t, data.interval) : '' }));
+  });
+}
+
+function showTooltip(event, point, interval) {
+  const tip = $('tooltip');
+  tip.replaceChildren(el('b', { text: bucketTitle(point.t, interval) }), document.createTextNode(`${numberFormat.format(point.count)} visits · ${numberFormat.format(point.unique)} unique`));
+  tip.hidden = false;
+  const width = tip.offsetWidth;
+  tip.style.left = `${Math.min(window.innerWidth - width - 8, event.clientX + 14)}px`;
+  tip.style.top = `${event.clientY + 16}px`;
+}
+function hideTooltip() { $('tooltip').hidden = true; }
+
+function renderRows(id, items, build) {
+  const container = $(id);
+  container.replaceChildren();
+  if (!items.length) { container.append(el('div', { class: 'empty-state', text: 'No data in this time range' })); return; }
+  const max = Math.max(...items.map(item => item.count));
+  for (const item of items) {
+    const built = build(item);
+    const row = el('div', { class: `row${built.onclick ? ' clickable' : ''}` }, [
+      el('span', { class: 'fill', style: `width:calc(${(item.count / max) * 100}% - 16px)` }),
+      el('div', { class: 'left' }, built.left),
+      el('span', { class: 'count', text: numberFormat.format(item.count) })
+    ]);
+    if (built.onclick) row.addEventListener('click', built.onclick);
+    container.append(row);
+  }
+}
+
+function renderPanels(data) {
+  renderRows('topIps', data.topIps, item => ({
+    left: [flag(item.cc), el('span', { class: 'text mono', text: item.ip })],
+    onclick: () => openIp(item.ip)
+  }));
+  renderRows('topCountries', data.topCountries, item => ({
+    left: [flag(item.cc), el('span', { class: 'text', text: item.cc ? `${countryName(item.cc)} (${item.cc})` : 'Unknown' })]
+  }));
+  renderRows('topAsNames', data.topAsNames, item => ({ left: [el('span', { class: 'text', text: item.name, title: item.name })] }));
+  renderRows('topUserAgents', data.topUserAgents, item => ({ left: [el('span', { class: 'text', text: item.ua || 'Unknown', title: item.ua })] }));
+  renderRows('topHosts', data.topHosts, item => ({ left: [el('span', { class: 'text', text: item.name })] }));
+  renderRows('topPaths', data.topPaths, item => ({ left: [el('span', { class: 'text mono', text: item.name })] }));
+}
+
+function renderRecent(data) {
+  const body = $('recentBody');
+  body.replaceChildren();
+  $('recentEmpty').hidden = data.recent.length > 0;
+  $('recentMeta').textContent = data.recent.length ? `Latest ${numberFormat.format(data.recent.length)}` : '';
+  for (const row of data.recent) {
+    const parsed = parseUserAgent(row.ua);
+    body.append(el('tr', {}, [
+      el('td', { class: 'muted', text: formatTime(row.t), style: 'white-space:nowrap' }),
+      el('td', {}, el('div', { class: 'cell' }, [flag(row.cc), el('button', { class: 'ip-link', type: 'button', text: row.ip, onclick: () => openIp(row.ip) })])),
+      el('td', { text: row.cc ? `${countryName(row.cc)} (${row.cc})` : 'Unknown', style: 'white-space:nowrap' }),
+      el('td', { style: 'white-space:nowrap' }, el('span', { class: `pill${parsed.device === 'Automated' ? ' warn' : ''}`, text: `${parsed.device} · ${parsed.browser}` })),
+      el('td', {}, el('div', { class: 'ua-cell', title: row.ua, text: row.ua || '—' }))
+    ]));
+  }
+}
+
+async function load() {
+  $('errorNotice').hidden = true;
+  try {
+    const data = await api(`/api/admin/traffic?interval=${state.interval}`);
+    state.data = data;
+    renderStats(data);
+    renderChart(data);
+    renderPanels(data);
+    renderRecent(data);
+    $('updatedAt').textContent = `Updated ${new Date(data.generatedAt).toLocaleTimeString('en-GB')} · all-time ${numberFormat.format(data.totals.allTime)} visits logged · UTC buckets`;
+  } catch (error) {
+    if (error.message === 'Authentication required') return;
+    $('errorNotice').textContent = `Traffic data could not be loaded: ${error.message}`;
+    $('errorNotice').hidden = false;
+  }
+}
+
+/* IP modal */
+let lastFocus = null;
+function kvList(entries) {
+  const dl = el('dl', { class: 'kv' });
+  for (const [label, value] of entries) {
+    dl.append(el('dt', { text: label }));
+    dl.append(el('dd', {}, typeof value === 'string' ? document.createTextNode(value || '—') : value));
+  }
+  return dl;
+}
+
+async function openIp(ip) {
+  lastFocus = document.activeElement;
+  $('ipModalHead').replaceChildren(el('h3', { id: 'ipModalTitle', text: ip }));
+  $('ipModalBody').replaceChildren(el('div', { class: 'loading', text: 'Looking up IP details…' }));
+  $('ipOverlay').hidden = false;
+  document.body.style.overflow = 'hidden';
+  $('ipClose').focus();
+  try {
+    const details = await api(`/api/admin/traffic/ip?ip=${encodeURIComponent(ip)}`);
+    if ($('ipOverlay').hidden) return;
+    renderIpModal(details);
+  } catch (error) {
+    if (error.message === 'Authentication required') return;
+    $('ipModalBody').replaceChildren(el('div', { class: 'notice', text: `IP details could not be loaded: ${error.message}` }));
+  }
+}
+
+function renderIpModal(details) {
+  const { geo, stats } = details;
+  const lastRecord = stats.recent[0];
+  const cc = geo?.countryCode || lastRecord?.cc || '';
+  $('ipModalHead').replaceChildren(
+    flag(cc),
+    el('div', { class: 'modal-title' }, el('h3', { id: 'ipModalTitle', text: details.ip })),
+    ...(geo?.proxy ? [el('span', { class: 'pill bad', text: 'Proxy / VPN' })] : []),
+    ...(geo?.hosting ? [el('span', { class: 'pill warn', text: 'Hosting / Datacenter' })] : []),
+    ...(geo?.mobile ? [el('span', { class: 'pill', text: 'Mobile network' })] : [])
+  );
+
+  const body = $('ipModalBody');
+  body.replaceChildren();
+  if (details.private) body.append(el('div', { class: 'notice', text: 'Private or local address — no public geolocation data is available.' }));
+  else if (!geo) body.append(el('div', { class: 'notice', text: 'Geolocation providers are unavailable or rate-limited right now. Try again in a minute.' }));
+
+  const location = [geo?.city, geo?.region, geo?.zip].filter(Boolean).join(', ');
+  body.append(
+    el('div', { class: 'section-title', text: 'Location' }),
+    kvList([
+      ['Country', geo?.country || cc ? el('span', { class: 'cell' }, [flag(cc), document.createTextNode(geo?.country ? `${geo.country} (${cc})` : countryName(cc))]) : '—'],
+      ['City / Region', location],
+      ['Timezone', geo?.timezone || ''],
+      ['Coordinates', geo?.lat != null && geo?.lon != null ? `${geo.lat}, ${geo.lon}` : '']
+    ]),
+    el('div', { class: 'section-title', text: 'Network' }),
+    kvList([
+      ['ISP', geo?.isp || ''],
+      ['Organization', geo?.org || ''],
+      ['ASN', geo?.as || ''],
+      ['AS Name', geo?.asName || lastRecord?.as || ''],
+      ['Reverse DNS', geo?.reverse || ''],
+      ['Data source', geo?.source || '']
+    ])
+  );
+
+  const parsed = parseUserAgent(lastRecord?.ua || stats.userAgents[0]?.ua || '');
+  body.append(
+    el('div', { class: 'section-title', text: 'Device' }),
+    kvList([
+      ['Device type', parsed.device],
+      ['Browser', parsed.browser],
+      ['Operating system', parsed.os]
+    ])
+  );
+
+  body.append(el('div', { class: 'section-title', text: stats.userAgents.length > 1 ? 'User agents' : 'User agent' }));
+  if (!stats.userAgents.length) body.append(el('div', { class: 'ua-raw', text: '—' }));
+  for (const item of stats.userAgents) {
+    body.append(el('div', { class: 'ua-raw', style: 'margin-bottom:8px', text: stats.userAgents.length > 1 ? `${item.ua || '—'}  (${item.count}×)` : item.ua || '—' }));
+  }
+
+  body.append(
+    el('div', { class: 'section-title', text: 'Activity' }),
+    kvList([
+      ['Total visits', numberFormat.format(stats.visits)],
+      ['First seen', stats.firstSeen ? formatTime(stats.firstSeen) : ''],
+      ['Last seen', stats.lastSeen ? formatTime(stats.lastSeen) : '']
+    ])
+  );
+
+  if (stats.recent.length) {
+    const list = el('div', { class: 'rows', style: 'border:1px solid var(--line);border-radius:8px;overflow:hidden' });
+    for (const row of stats.recent.slice(0, 10)) {
+      list.append(el('div', { class: 'row' }, [
+        el('div', { class: 'left' }, el('span', { class: 'text mono', text: row.path })),
+        el('span', { class: 'count', text: formatTime(row.t) })
+      ]));
+    }
+    body.append(el('div', { class: 'section-title', text: 'Recent requests' }), list);
+  }
+}
+
+function closeIp() {
+  $('ipOverlay').hidden = true;
+  document.body.style.overflow = '';
+  lastFocus?.focus?.();
+}
+
+$('ipClose').addEventListener('click', closeIp);
+$('ipOverlay').addEventListener('click', event => { if (event.target === $('ipOverlay')) closeIp(); });
+document.addEventListener('keydown', event => { if (event.key === 'Escape' && !$('ipOverlay').hidden) closeIp(); });
+
+$('intervalTabs').addEventListener('click', event => {
+  const button = event.target.closest('button[data-interval]');
+  if (!button || button.dataset.interval === state.interval) return;
+  state.interval = button.dataset.interval;
+  document.querySelectorAll('#intervalTabs button').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+  load();
+});
+$('refreshButton').addEventListener('click', load);
+
+load();
+setInterval(() => { if (!document.hidden && $('ipOverlay').hidden) load(); }, 30000);
+</script>
+</body>
+</html>
