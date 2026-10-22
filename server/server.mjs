@@ -4,7 +4,8 @@ import fs from 'node:fs/promises';
 import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createTraffic } from './traffic.mjs';
+import net from 'node:net';
+import { createTraffic, normalizeIp } from './traffic.mjs';
 
 const host = '127.0.0.1';
 const port = Number(process.env.PORT || 8787);
@@ -15,6 +16,7 @@ const trafficFile = path.join(serverDirectory, 'traffic.html');
 const legacyAliases = { 'music.mp3': 'assets/music.mp3' };
 const settingsFile = process.env.SITE_SETTINGS_FILE || '/var/lib/cloxin/site-settings.json';
 const viewsFile = process.env.VIEW_COUNT_FILE || '/var/lib/cloxin/views.json';
+const accessFile = process.env.ACCESS_FILE || path.join(path.dirname(settingsFile), 'access.json');
 const trafficLogFile = process.env.TRAFFIC_LOG_FILE || path.join(path.dirname(settingsFile), 'traffic.jsonl');
 const traffic = createTraffic({ file: trafficLogFile });
 const uploadsDirectory = path.join(path.dirname(settingsFile), 'uploads');
@@ -122,6 +124,8 @@ const defaults = {
 };
 
 let settings = structuredClone(defaults);
+let access = { siteOpen: true, blacklist: [] };
+let blacklistSet = new Set();
 let viewCount = 0;
 const countedViewers = new Set();
 let viewsWriteQueue = Promise.resolve();
@@ -201,6 +205,34 @@ function normalizeSettings(input = {}) {
     })).filter(link => link.url)
   };
 }
+
+function normalizeAccess(input = {}) {
+  const seen = new Set();
+  const blacklist = [];
+  for (const entry of Array.isArray(input.blacklist) ? input.blacklist.slice(0, 1000) : []) {
+    const ip = normalizeIp(entry?.ip);
+    if (ip === 'unknown' || seen.has(ip)) continue;
+    seen.add(ip);
+    blacklist.push({
+      ip,
+      reason: safeText(entry?.reason, 120),
+      addedAt: Number.isFinite(Number(entry?.addedAt)) ? Number(entry.addedAt) : Date.now()
+    });
+  }
+  return { siteOpen: boolOr(input.siteOpen, true), blacklist };
+}
+
+async function saveAccess(next) {
+  const normalized = normalizeAccess(next);
+  await fs.mkdir(path.dirname(accessFile), { recursive: true });
+  const temporaryFile = `${accessFile}.tmp`;
+  await fs.writeFile(temporaryFile, `${JSON.stringify(normalized, null, 2)}\n`, { mode: 0o600 });
+  await fs.rename(temporaryFile, accessFile);
+  access = normalized;
+  blacklistSet = new Set(normalized.blacklist.map(entry => entry.ip));
+}
+
+const maintenancePage = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>Closed</title><style>html,body{height:100%;margin:0;background:#000;color:#ededed;font-family:Inter,"Segoe UI",sans-serif}body{display:grid;place-items:center}p{margin:0;color:#a1a1a1}h1{margin:0 0 8px;font-size:20px;font-weight:600}div{text-align:center}</style></head><body><div><h1>Site is closed</h1><p>Please check back later.</p></div></body></html>`;
 
 function digest(value) {
   return createHash('sha256').update(value).digest();
@@ -353,6 +385,19 @@ function viewVisitorKey(request, visitorId) {
 
 async function handleRequest(request, response) {
   const requestUrl = new URL(request.url, 'http://localhost');
+
+  if (blacklistSet.has(requestIp(request))) {
+    response.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
+    response.end('Access denied');
+    return;
+  }
+
+  const isAdminRoute = requestUrl.pathname === '/admin' || requestUrl.pathname === '/traffic' || requestUrl.pathname.startsWith('/api/admin/');
+  if (!access.siteOpen && !isAdminRoute && !hasSession(request)) {
+    response.writeHead(503, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Retry-After': '3600', 'X-Content-Type-Options': 'nosniff' });
+    response.end(request.method === 'HEAD' ? undefined : maintenancePage);
+    return;
+  }
 
   if ((request.method === 'GET' || request.method === 'HEAD') && (requestUrl.pathname === '/' || requestUrl.pathname === '/index.html') && !requestUrl.searchParams.has('adminPreview')) {
     traffic.record({
@@ -517,6 +562,66 @@ async function handleRequest(request, response) {
     return;
   }
 
+  if (requestUrl.pathname === '/api/admin/access' || requestUrl.pathname === '/api/admin/site-status' || requestUrl.pathname === '/api/admin/blacklist') {
+    if (!hasSession(request)) {
+      sendJson(response, 401, { error: 'Authentication required' });
+      return;
+    }
+    if (request.method === 'GET' && requestUrl.pathname === '/api/admin/access') {
+      sendJson(response, 200, { ...access, you: requestIp(request) });
+      return;
+    }
+    if (!sameOrigin(request)) {
+      sendJson(response, 403, { error: 'Origin not allowed' });
+      return;
+    }
+
+    try {
+      if (request.method === 'POST' && requestUrl.pathname === '/api/admin/site-status') {
+        const body = await readJson(request);
+        if (typeof body.open !== 'boolean') {
+          sendJson(response, 400, { error: 'open must be a boolean' });
+          return;
+        }
+        await saveAccess({ ...access, siteOpen: body.open });
+        sendJson(response, 200, { ...access, you: requestIp(request) });
+        return;
+      }
+
+      if (request.method === 'POST' && requestUrl.pathname === '/api/admin/blacklist') {
+        const body = await readJson(request);
+        const ip = normalizeIp(typeof body.ip === 'string' ? body.ip : '');
+        if (ip === 'unknown' || !net.isIP(ip)) {
+          sendJson(response, 400, { error: 'Invalid IP address' });
+          return;
+        }
+        if (ip === requestIp(request)) {
+          sendJson(response, 400, { error: 'You cannot block your own IP address' });
+          return;
+        }
+        if (access.blacklist.length >= 1000 && !blacklistSet.has(ip)) {
+          sendJson(response, 400, { error: 'Blacklist is full' });
+          return;
+        }
+        const entry = { ip, reason: safeText(body.reason, 120), addedAt: Date.now() };
+        await saveAccess({ ...access, blacklist: [entry, ...access.blacklist.filter(item => item.ip !== ip)] });
+        sendJson(response, 200, { ...access, you: requestIp(request) });
+        return;
+      }
+
+      if (request.method === 'DELETE' && requestUrl.pathname === '/api/admin/blacklist') {
+        const ip = normalizeIp(requestUrl.searchParams.get('ip'));
+        await saveAccess({ ...access, blacklist: access.blacklist.filter(item => item.ip !== ip) });
+        sendJson(response, 200, { ...access, you: requestIp(request) });
+        return;
+      }
+    } catch (error) {
+      console.error('Access settings could not be saved:', error.message);
+      sendJson(response, error instanceof SyntaxError ? 400 : 500, { error: 'Access settings could not be saved' });
+      return;
+    }
+  }
+
   if (requestUrl.pathname === '/api/admin/settings') {
     if (!hasSession(request)) {
       sendJson(response, 401, { error: 'Authentication required' });
@@ -553,6 +658,12 @@ async function handleRequest(request, response) {
   sendJson(response, 404, { error: 'Not found' });
 }
 
+async function saveAccessFromDisk() {
+  const loaded = normalizeAccess(JSON.parse(await fs.readFile(accessFile, 'utf8')));
+  access = loaded;
+  blacklistSet = new Set(loaded.blacklist.map(entry => entry.ip));
+}
+
 async function start() {
   if (!process.env.ADMIN_PASSWORD) {
     throw new Error('ADMIN_PASSWORD must be configured before starting the admin API');
@@ -577,6 +688,11 @@ async function start() {
   }
 
   await traffic.load();
+  try {
+    await saveAccessFromDisk();
+  } catch (error) {
+    if (error.code !== 'ENOENT') console.error('Using default access settings:', error.message);
+  }
 
   const server = http.createServer((request, response) => {
     handleRequest(request, response).catch(error => {
