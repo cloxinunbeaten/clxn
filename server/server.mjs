@@ -126,6 +126,34 @@ const defaults = {
 let settings = structuredClone(defaults);
 let access = { siteOpen: true, blacklist: [] };
 let blacklistSet = new Set();
+let blockList = new net.BlockList();
+const blockedHosts = new Set((process.env.BLOCK_HOSTS || 'cloxinunbeaten.xyz,www.cloxinunbeaten.xyz').split(',').map(host => host.trim().toLowerCase()).filter(Boolean));
+
+function rebuildBlockList(entries) {
+  const next = new net.BlockList();
+  for (const { ip } of entries) {
+    try {
+      if (net.isIPv6(ip)) next.addSubnet(ip, 64, 'ipv6');
+      else next.addAddress(ip, 'ipv4');
+    } catch {}
+  }
+  blockList = next;
+  blacklistSet = new Set(entries.map(entry => entry.ip));
+}
+
+function requestHost(request) {
+  return String(request.headers['x-forwarded-host'] || request.headers.host || '').split(',')[0].trim().toLowerCase().replace(/:\d+$/, '');
+}
+
+function candidateIps(request) {
+  const raw = [request.headers['x-real-ip'], request.headers['cf-connecting-ip'], request.headers['true-client-ip'], request.socket.remoteAddress, ...String(request.headers['x-forwarded-for'] || '').split(',')];
+  return [...new Set(raw.map(value => normalizeIp(typeof value === 'string' ? value : '')).filter(ip => ip !== 'unknown' && ip !== '127.0.0.1' && ip !== '::1'))];
+}
+
+function isBlockedRequest(request) {
+  if (!blockedHosts.has(requestHost(request))) return false;
+  return candidateIps(request).some(ip => blockList.check(ip, net.isIPv6(ip) ? 'ipv6' : 'ipv4'));
+}
 let viewCount = 0;
 const countedViewers = new Set();
 let viewsWriteQueue = Promise.resolve();
@@ -229,7 +257,7 @@ async function saveAccess(next) {
   await fs.writeFile(temporaryFile, `${JSON.stringify(normalized, null, 2)}\n`, { mode: 0o600 });
   await fs.rename(temporaryFile, accessFile);
   access = normalized;
-  blacklistSet = new Set(normalized.blacklist.map(entry => entry.ip));
+  rebuildBlockList(normalized.blacklist);
 }
 
 const maintenancePage = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>Closed</title><style>html,body{height:100%;margin:0;background:#000;color:#ededed;font-family:Inter,"Segoe UI",sans-serif}body{display:grid;place-items:center}p{margin:0;color:#a1a1a1}h1{margin:0 0 8px;font-size:20px;font-weight:600}div{text-align:center}</style></head><body><div><h1>Site is closed</h1><p>Please check back later.</p></div></body></html>`;
@@ -386,13 +414,15 @@ function viewVisitorKey(request, visitorId) {
 async function handleRequest(request, response) {
   const requestUrl = new URL(request.url, 'http://localhost');
 
-  if (blacklistSet.has(requestIp(request))) {
+  const isAdminRoute = requestUrl.pathname === '/admin' || requestUrl.pathname === '/traffic' || requestUrl.pathname.startsWith('/api/admin/');
+  const isAdminPreview = requestUrl.searchParams.has('adminPreview') || /[?&]adminPreview=/.test(String(request.headers.referer || ''));
+  const adminBypass = hasSession(request) && (isAdminRoute || isAdminPreview);
+  if (!adminBypass && isBlockedRequest(request)) {
     response.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
     response.end('Access denied');
     return;
   }
 
-  const isAdminRoute = requestUrl.pathname === '/admin' || requestUrl.pathname === '/traffic' || requestUrl.pathname.startsWith('/api/admin/');
   if (!access.siteOpen && !isAdminRoute && !hasSession(request)) {
     response.writeHead(503, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Retry-After': '3600', 'X-Content-Type-Options': 'nosniff' });
     response.end(request.method === 'HEAD' ? undefined : maintenancePage);
@@ -595,10 +625,6 @@ async function handleRequest(request, response) {
           sendJson(response, 400, { error: 'Invalid IP address' });
           return;
         }
-        if (ip === requestIp(request)) {
-          sendJson(response, 400, { error: 'You cannot block your own IP address' });
-          return;
-        }
         if (access.blacklist.length >= 1000 && !blacklistSet.has(ip)) {
           sendJson(response, 400, { error: 'Blacklist is full' });
           return;
@@ -661,7 +687,7 @@ async function handleRequest(request, response) {
 async function saveAccessFromDisk() {
   const loaded = normalizeAccess(JSON.parse(await fs.readFile(accessFile, 'utf8')));
   access = loaded;
-  blacklistSet = new Set(loaded.blacklist.map(entry => entry.ip));
+  rebuildBlockList(loaded.blacklist);
 }
 
 async function start() {

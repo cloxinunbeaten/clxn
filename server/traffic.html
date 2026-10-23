@@ -497,7 +497,7 @@ function renderAccess() {
   for (const entry of blacklist) {
     rows.append(el('div', { class: 'bl-row' }, [
       el('button', { class: 'ip-link', type: 'button', text: entry.ip, style: 'justify-self:start', onclick: () => openIp(entry.ip) }),
-      el('span', { class: 'muted', text: entry.reason || '—', style: 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap' }),
+      el('span', { class: 'muted', text: `${entry.ip.includes(':') ? '[IPv6 /64] ' : ''}${entry.reason || ''}` || '—', style: 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap' }),
       el('span', { class: 'dim', text: formatTime(entry.addedAt), style: 'white-space:nowrap' }),
       el('button', { class: 'btn small', type: 'button', text: 'Unblock', onclick: () => unblockIp(entry.ip) })
     ]));
@@ -522,15 +522,14 @@ function blockAction(details) {
   const blocked = isBlocked(details.ip);
   const isSelf = details.ip === state.access.you;
   const button = el('button', { class: `btn small${blocked ? '' : ' danger'}`, type: 'button', text: blocked ? 'Remove from blacklist' : 'Add to blacklist' });
-  if (isSelf && !blocked) { button.disabled = true; button.title = 'You cannot block your own IP address'; }
   button.addEventListener('click', async () => {
     button.disabled = true;
     if (blocked) await unblockIp(details.ip);
-    else if (confirm(`Block ${details.ip}? This address will no longer be able to reach the site.`)) await blockIp(details.ip, 'Added from traffic panel');
+    else if (confirm(isSelf ? `${details.ip} is YOUR current IP. The public site will be blocked for you (the admin panel stays reachable while you are logged in). Continue?` : `Block ${details.ip}? This address will no longer be able to reach the site.`)) await blockIp(details.ip, 'Added from traffic panel');
     button.disabled = false;
   });
   return el('div', { class: 'modal-actions' }, [
-    el('span', { class: blocked ? '' : 'muted', text: blocked ? 'This IP is blocked from the site.' : isSelf ? 'This is your current IP address.' : 'Block this IP from accessing the site.' }),
+    el('span', { class: blocked ? '' : 'muted', text: blocked ? 'This IP is blocked from cloxinunbeaten.xyz.' : isSelf ? 'This is your current IP address.' : 'Block this IP from accessing cloxinunbeaten.xyz.' }),
     button
   ]);
 }
