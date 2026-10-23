@@ -142,6 +142,7 @@ function applyProfileSettings(settings){
   const currentUser = lastPresenceData?.discord_user;
   document.getElementById('displayName').textContent = profileSettings.displayName || currentUser?.global_name || currentUser?.username || 'Cloxin';
   setAvatar(profileSettings.avatarUrl || (currentUser ? avatarUrl(currentUser) : 'https://cdn.discordapp.com/embed/avatars/0.png'));
+  setAvatarDecoration(currentUser);
   if(lastPresenceData){
     applyStatus(lastPresenceData.discord_status);
     applyActivity(lastPresenceData);
@@ -190,6 +191,24 @@ function getViewVisitorId(){
 
 function setAvatar(src){
   document.getElementById('avatar').src = src;
+}
+
+function setAvatarDecoration(user){
+  const img = document.getElementById('avatarDecoration');
+  const asset = user?.avatar_decoration_data?.asset;
+  if(!asset || !/^[\w-]+$/.test(asset)){
+    img.hidden = true;
+    img.removeAttribute('src');
+    return;
+  }
+  const src = `https://cdn.discordapp.com/avatar-decoration-presets/${asset}.png?size=240&passthrough=true`;
+  if(img.getAttribute('src') !== src){
+    img.onerror = () => { img.hidden = true; };
+    img.onload = () => { img.hidden = false; };
+    img.src = src;
+  }else if(img.complete && img.naturalWidth){
+    img.hidden = false;
+  }
 }
 
 function avatarUrl(user){
@@ -294,6 +313,7 @@ async function loadPresence(){
     lastPresenceData = data;
 
     setAvatar(profileSettings.avatarUrl || avatarUrl(user));
+    setAvatarDecoration(user);
     document.getElementById('displayName').textContent = profileSettings.displayName || user.global_name || user.username;
     document.getElementById('userTag').textContent = '@' + user.username;
 

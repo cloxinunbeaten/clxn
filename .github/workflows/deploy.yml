@@ -22,6 +22,16 @@ jobs:
             exit 1
           fi
 
+      - name: Encode admin password for systemd
+        id: encode-password
+        shell: bash
+        env:
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+        run: |
+          printf 'admin_password_b64=' >> "$GITHUB_OUTPUT"
+          printf '%s' "$ADMIN_PASSWORD" | base64 -w0 >> "$GITHUB_OUTPUT"
+          printf '\n' >> "$GITHUB_OUTPUT"
+
       - name: Copy public site to VDS
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -46,22 +56,22 @@ jobs:
       - name: Install profile API and admin service
         uses: appleboy/ssh-action@v1.0.3
         env:
-          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          ADMIN_PASSWORD_B64: ${{ steps.encode-password.outputs.admin_password_b64 }}
         with:
           host: ${{ secrets.VDS_HOST }}
           username: ${{ secrets.VDS_USER }}
           key: ${{ secrets.VDS_SSH_KEY }}
-          envs: ADMIN_PASSWORD
+          envs: ADMIN_PASSWORD_B64
           script: |
-            if [ -z "$ADMIN_PASSWORD" ]; then echo "Configure the ADMIN_PASSWORD Actions secret before deploying." >&2; exit 1; fi
+            if [ -z "$ADMIN_PASSWORD_B64" ]; then echo "Configure the ADMIN_PASSWORD Actions secret before deploying." >&2; exit 1; fi
             sudo install -d -o www-data -g www-data -m 750 /var/lib/cloxin
             sudo install -d -m 755 /opt/cloxin /etc/cloxin
-            printf 'ADMIN_PASSWORD=%s\nSITE_SETTINGS_FILE=/var/lib/cloxin/site-settings.json\nVIEW_COUNT_FILE=/var/lib/cloxin/views.json\nWEB_ROOT=/var/www/html\n' "$ADMIN_PASSWORD" | sudo tee /etc/cloxin/site.env >/dev/null
+            printf 'ADMIN_PASSWORD_B64=%s\nSITE_SETTINGS_FILE=/var/lib/cloxin/site-settings.json\nVIEW_COUNT_FILE=/var/lib/cloxin/views.json\nTRAFFIC_FILE=/var/lib/cloxin/traffic.jsonl\nTRAFFIC_BLACKLIST_FILE=/var/lib/cloxin/traffic-blacklist.json\nTRAFFIC_WHITELIST_FILE=/var/lib/cloxin/traffic-whitelist.json\nSITE_STATUS_FILE=/var/lib/cloxin/site-status.json\nWEB_ROOT=/var/www/html\n' "$ADMIN_PASSWORD_B64" | sudo tee /etc/cloxin/site.env >/dev/null
             sudo chmod 600 /etc/cloxin/site.env
             sudo install -o root -g root -m 644 /tmp/cloxin-release/server/server.mjs /opt/cloxin/server.mjs
             sudo install -o root -g root -m 644 /tmp/cloxin-release/server/admin.html /opt/cloxin/admin.html
-            sudo install -o root -g root -m 644 /tmp/cloxin-release/server/traffic.mjs /opt/cloxin/traffic.mjs
             sudo install -o root -g root -m 644 /tmp/cloxin-release/server/traffic.html /opt/cloxin/traffic.html
+            sudo install -o root -g root -m 644 /tmp/cloxin-release/server/offline.html /opt/cloxin/offline.html
             sudo install -o root -g root -m 644 /tmp/cloxin-release/deploy/cloxin-site.service.example /etc/systemd/system/cloxin-site.service
             if [ -f /var/www/html/index.html ]; then sudo rm -rf /var/www/html/public; fi
             sudo rm -rf /var/www/html/.git /var/www/html/.github /var/www/html/server /var/www/html/deploy /var/www/html/docs
@@ -70,7 +80,6 @@ jobs:
             sudo rm -f /etc/systemd/system/cloxin-bot.service
             sudo systemctl daemon-reload
             sudo node --check /opt/cloxin/server.mjs
-            sudo node --check /opt/cloxin/traffic.mjs
             sudo systemctl enable --now cloxin-site.service
             sudo systemctl restart cloxin-site.service
             sudo cp /tmp/cloxin-release/deploy/nginx.conf.example /etc/nginx/sites-available/cloxin

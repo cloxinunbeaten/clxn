@@ -99,7 +99,7 @@
   }
 
   html{min-height:100%;background:var(--page);}
-  body{min-height:100vh;padding:26px 24px 44px;background:#000;}
+  body{min-height:100vh;padding:26px 24px 44px;background:linear-gradient(180deg,#101d16 0%,var(--page) 380px);}
   .shell{width:min(100%,1500px);}
   .topbar{margin-bottom:22px;padding:14px 4px 20px;background:transparent;border:0;border-bottom:1px solid var(--line);border-radius:0;box-shadow:none;}
   .brand-lockup{display:flex;align-items:center;gap:13px;}
@@ -112,8 +112,6 @@
   .top-actions{gap:15px;}
   .top-actions a{color:var(--muted);text-decoration:none;font-size:13px;font-weight:650;}
   .top-actions a:hover{color:var(--accent);}
-  .top-actions a.nav-btn{display:inline-flex;align-items:center;min-height:40px;padding:9px 14px;color:var(--text);border:1px solid #707070;border-radius:5px;background:#4a4a4a;}
-  .top-actions a.nav-btn:hover{color:var(--text);background:#555;}
   .session-indicator{display:inline-flex;align-items:center;gap:8px;color:var(--muted);font-size:12px;font-weight:600;}
   .session-indicator span{width:7px;height:7px;background:#63cf92;border-radius:50%;box-shadow:0 0 0 4px rgba(99,207,146,.11);}
   .workspace{grid-template-columns:minmax(310px,390px) minmax(0,1fr);gap:22px;}
@@ -155,11 +153,58 @@
   .login h1{margin-top:8px;font-size:22px;}
   .login p{color:var(--muted);line-height:1.5;}
   .login .field{gap:11px;}
+  .admin-layout{display:grid;grid-template-columns:210px minmax(0,1fr);align-items:start;gap:20px;}
+  .admin-sidebar{position:sticky;top:18px;display:grid;gap:18px;padding:14px;background:#101f17;border:1px solid var(--line);border-radius:10px;}
+  .side-nav{display:grid;gap:6px;}
+  .side-nav a{display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px;color:var(--muted);background:transparent;border:1px solid transparent;border-radius:6px;text-align:left;text-decoration:none;font-size:12px;font-weight:700;}
+  .side-nav a:hover{color:var(--text);background:#151515;}
+  .side-nav a[aria-current="page"]{color:#9bcaff;background:#101d2b;border-color:#263b52;}
+  .admin-content{min-width:0;}
+  :root{
+    --page:#080808;
+    --panel:#0b0b0b;
+    --panel-raised:#111;
+    --field:#101010;
+    --line:#242424;
+    --line-strong:#343434;
+    --text:#f3f3f3;
+    --muted:#929292;
+    --accent:#1687ff;
+    --accent-soft:#10223a;
+    background:var(--page);
+  }
+  body{background:#080808;}
+  .brand-mark{color:#fff;background:#1687ff;}
+  .eyebrow{color:#1687ff;}
+  .session-indicator span,.live-badge span{background:#1687ff;box-shadow:none;}
+  .preview-panel{background:#0b0b0b;}
+  .live-badge{color:#9bcaff;background:#101d2b;border-color:#263b52;}
+  .settings-panel>.form-grid,.settings-panel>.section{background:#0b0b0b;border-color:#242424;}
+  label,.field-label{color:#d8d8d8;}
+  input[type="text"],input[type="url"],input[type="password"],input[type="number"],input[type="file"],textarea,select{background:#101010;}
+  input:focus,textarea:focus,select:focus{border-color:#1687ff;background:#101010;box-shadow:0 0 0 3px rgba(22,135,255,.13);}
+  .color-field,.social-row{background:#101010;border-color:#242424;}
+  .section h2{color:#e8e8e8;}
+  .btn{color:#eee;background:#151515;border-color:#303030;}
+  .btn:hover{background:#202020;border-color:#454545;}
+  .btn.primary{color:#fff;background:#1687ff;border-color:#1687ff;}
+  .btn.primary:hover{background:#3297ff;border-color:#3297ff;}
+  .save-row{background:linear-gradient(180deg,rgba(8,8,8,0),#080808 35%);}
+  .admin-layout{display:block;}
+  .admin-sidebar{position:fixed;z-index:20;top:0;bottom:0;left:0;width:min(280px,82vw);padding:78px 14px 20px;background:#0b0b0b;border:0;border-right:1px solid #242424;border-radius:0;box-shadow:20px 0 60px #0008;transform:translateX(-105%);transition:transform .2s ease;}
+  body.menu-open .admin-sidebar{transform:translateX(0);}
+  .menu-backdrop{position:fixed;z-index:19;inset:0;background:#0009;}
+  .menu-backdrop[hidden]{display:none;}
+  .menu-toggle{display:grid;width:40px;height:40px;padding:10px;place-content:center;gap:4px;color:#eee;background:#101010;border:1px solid #292929;border-radius:6px;cursor:pointer;}
+  .menu-toggle span{display:block;width:17px;height:2px;background:currentColor;border-radius:2px;}
+  .topbar{justify-content:flex-start;gap:15px;}
+  .topbar .top-actions{margin-left:auto;}
 
   @media(max-width:900px){
     .workspace{grid-template-columns:minmax(0,1fr);}
     .preview-panel{position:static;}
     .preview-frame{height:530px;}
+    .admin-layout{display:block;}
   }
 
   @media(max-width:640px){
@@ -177,50 +222,10 @@
     .save-row{bottom:-14px;padding:12px 0;}
     .save-row .btn{white-space:nowrap;}
     .preview-frame{height:480px;}
+    body{padding:10px 8px 24px;}
+    .admin-layout{display:block;}
+    .topbar{gap:9px;}
   }
-
-  /* Black & white theme (matches /traffic) */
-  :root{
-    --page:#000;
-    --panel:#0a0a0a;
-    --panel-raised:#111;
-    --field:#000;
-    --line:#242424;
-    --line-strong:#333;
-    --text:#ededed;
-    --muted:#a1a1a1;
-    --accent:#ededed;
-    --accent-soft:#1a1a1a;
-    font-family:"Geist","Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-    background:#000;
-  }
-  html,body{background:#000;}
-  body{background:#000;}
-  .brand-mark{color:#000;background:#ededed;}
-  .eyebrow{color:var(--muted);}
-  .top-actions a:hover{color:var(--text);}
-  .top-actions a.nav-btn{color:var(--text);background:#0a0a0a;border:1px solid var(--line-strong);}
-  .top-actions a.nav-btn:hover{background:#111;border-color:#444;}
-  .session-indicator span{background:#ededed;box-shadow:0 0 0 4px rgba(237,237,237,.1);}
-  .preview-panel{background:#0a0a0a;border-color:var(--line);box-shadow:none;}
-  .live-badge{color:var(--text);background:#1a1a1a;border-color:var(--line-strong);}
-  .live-badge span{background:#ededed;}
-  .preview-frame{background:#000;border-color:var(--line);}
-  .settings-panel>.form-grid,.settings-panel>.section{background:#0a0a0a;border-color:var(--line);box-shadow:none;}
-  label,.field-label{color:var(--text);}
-  .section h2{color:var(--text);}
-  input:focus,textarea:focus,select:focus{border-color:#ededed;background:#050505;box-shadow:0 0 0 3px rgba(237,237,237,.1);}
-  input[type="color"]{background:#000;border-color:var(--line-strong);}
-  .color-field,.social-row{background:#000;border-color:var(--line);}
-  .btn{color:var(--text);background:#0a0a0a;border:1px solid var(--line-strong);}
-  .btn:hover{background:#171717;border-color:#555;}
-  .btn.primary{color:#000;background:#ededed;border-color:#ededed;}
-  .btn.primary:hover{background:#fff;border-color:#fff;}
-  .btn.remove{color:#ededed;background:#0a0a0a;border-color:var(--line-strong);}
-  .btn.remove:hover{background:#171717;border-color:#555;}
-  .save-row{background:linear-gradient(180deg,rgba(0,0,0,0),#000 35%);}
-  .status.error{color:#ff8a8a;}
-  .login{background:#0a0a0a;border-color:var(--line-strong);box-shadow:none;}
 </style>
 </head>
 <body>
@@ -241,25 +246,33 @@
 
   <section id="editorPanel" hidden>
     <header class="topbar">
+      <button class="menu-toggle" id="menuToggle" type="button" aria-label="Menüyü aç" aria-expanded="false" aria-controls="adminSidebar"><span></span><span></span><span></span></button>
       <div class="brand-lockup">
         <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 7.5A8 8 0 1 0 19 16.5"/><path d="M14 12h7"/></svg></span>
         <div class="brand-copy"><span class="eyebrow">PROFILE STUDIO</span><h1>Cloxin Admin</h1></div>
       </div>
       <div class="top-actions">
-        <span class="session-indicator"><span></span>Oturum açık</span>
+        <span class="session-indicator" id="sessionIndicator"><span></span>Oturum açık</span>
         <a href="/" rel="noreferrer">Profili aç</a>
-        <a class="btn nav-btn" href="/traffic">Trafik</a>
         <button class="btn" id="logoutButton" type="button">Çıkış</button>
       </div>
     </header>
 
-    <div class="workspace">
-      <aside class="preview-panel">
-        <div class="preview-heading"><h2>Canlı profil</h2><span class="live-badge"><span></span>CANLI</span></div>
-        <iframe class="preview-frame" id="profilePreview" src="/?adminPreview=1" title="Canlı profil kartı" scrolling="no"></iframe>
+    <div class="admin-layout">
+      <aside class="admin-sidebar" id="adminSidebar">
+        <nav class="side-nav" aria-label="Yönetim bölümleri">
+          <a href="/admin">Traffic</a>
+          <a href="/admin?view=customize" aria-current="page">Customize</a>
+        </nav>
       </aside>
-
-    <form class="panel settings-panel" id="settingsForm">
+      <div class="menu-backdrop" id="menuBackdrop" hidden></div>
+      <div class="admin-content">
+          <div class="workspace">
+            <aside class="preview-panel">
+              <div class="preview-heading"><h2>Canlı profil</h2><span class="live-badge"><span></span>CANLI</span></div>
+              <iframe class="preview-frame" id="profilePreview" src="/?adminPreview=1" title="Canlı profil kartı" scrolling="no"></iframe>
+            </aside>
+            <form class="panel settings-panel" id="settingsForm">
       <div class="form-grid">
         <div class="field">
           <label for="profileId">Discord kullanıcı ID</label>
@@ -368,7 +381,9 @@
         <button class="btn primary" type="submit">Değişiklikleri kaydet</button>
         <div class="status" id="saveStatus" role="status"></div>
       </div>
-    </form>
+            </form>
+          </div>
+      </div>
     </div>
   </section>
 </main>
@@ -384,6 +399,7 @@ const settingsForm = document.getElementById('settingsForm');
 const profilePreview = document.getElementById('profilePreview');
 const iconOptions = ['discord', 'github', 'instagram', 'tiktok', 'twitter', 'youtube', 'link'];
 let previewTimer;
+let canManage = false;
 
 async function api(url, options = {}){
   const response = await fetch(url, {
@@ -403,8 +419,29 @@ async function api(url, options = {}){
 function showEditor(){
   loginPanel.hidden = true;
   editorPanel.hidden = false;
+  document.getElementById('sessionIndicator').hidden = !canManage;
+  document.getElementById('logoutButton').hidden = !canManage;
+  document.getElementById('menuToggle').addEventListener('click', toggleMenu);
+  document.getElementById('menuBackdrop').addEventListener('click', toggleMenu);
+  document.addEventListener('keydown', event => {
+    if(event.key === 'Escape') closeMenu();
+  });
 }
 
+function toggleMenu(){
+  const open = !document.body.classList.contains('menu-open');
+  document.body.classList.toggle('menu-open', open);
+  document.getElementById('menuBackdrop').hidden = !open;
+  document.getElementById('menuToggle').setAttribute('aria-expanded', String(open));
+  document.getElementById('menuToggle').setAttribute('aria-label', open ? 'Menüyü kapat' : 'Menüyü aç');
+}
+
+function closeMenu(){
+  document.body.classList.remove('menu-open');
+  document.getElementById('menuBackdrop').hidden = true;
+  document.getElementById('menuToggle').setAttribute('aria-expanded', 'false');
+  document.getElementById('menuToggle').setAttribute('aria-label', 'Menüyü aç');
+}
 function setStatus(element, text, error = false){
   element.textContent = text;
   element.classList.toggle('error', error);
@@ -506,11 +543,28 @@ document.getElementById('loginForm').addEventListener('submit', async event => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password })
     });
+  }catch(error){
+    setStatus(loginStatus, error.status === 401
+      ? 'Parola sunucudaki ADMIN_PASSWORD ayarıyla eşleşmiyor.'
+      : error.status === 429
+        ? 'Çok fazla deneme. Bir süre sonra tekrar dene.'
+        : error.message || 'Giriş sırasında sunucuya ulaşılamadı.', true);
+    return;
+  }
+  try{
+    const access = await api('/api/admin/session');
+    canManage = access.canManageTraffic;
+    if(!canManage){
+      setStatus(loginStatus, 'Parola kabul edildi ancak admin oturumu doğrulanamadı. Sayfayı yenileyip tekrar giriş yap.', true);
+      return;
+    }
     await loadSettings();
     showEditor();
     sendPreview();
   }catch(error){
-    setStatus(loginStatus, error.status === 429 ? 'Çok fazla deneme. Bir süre sonra tekrar dene.' : 'Giriş başarısız.', true);
+    setStatus(loginStatus, error.status === 401
+      ? 'Parola kabul edildi ancak oturum çerezi doğrulanamadı. Tarayıcı çerezlerini etkinleştirip tekrar dene.'
+      : error.message || 'Giriş başarılı; admin paneli açılamadı.', true);
   }
 });
 
@@ -587,7 +641,10 @@ document.getElementById('logoutButton').addEventListener('click', async () => {
   location.reload();
 });
 
-api('/api/admin/session').then(loadSettings).then(() => {
+api('/api/admin/session').then(async access => {
+  canManage = access.canManageTraffic;
+  if(!canManage) return;
+  await loadSettings();
   showEditor();
   sendPreview();
 }).catch(error => {

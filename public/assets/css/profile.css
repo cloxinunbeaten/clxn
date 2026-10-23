@@ -1,4 +1,4 @@
-  :root{
+:root{
     --bg-0:#4b4b4b;
     --bg-1:#333333;
     --card-bg:#3b3b3b;
@@ -56,6 +56,19 @@
     padding:4px;
     transition:transform 0.2s ease;
   }
+
+  .avatar-decoration{
+    position:absolute;
+    inset:-10%;
+    width:120%;
+    height:120%;
+    z-index:2;
+    object-fit:contain;
+    pointer-events:none;
+    user-select:none;
+  }
+  .avatar-decoration[hidden]{display:none;}
+  .status-dot{z-index:3;}
 
   .avatar-inner img{
     width:100%;
