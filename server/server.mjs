@@ -691,8 +691,8 @@ async function saveAccessFromDisk() {
 }
 
 async function start() {
-  if (!process.env.ADMIN_PASSWORD) {
-    throw new Error('ADMIN_PASSWORD must be configured before starting the admin API');
+    if (!process.env.ADMIN_PASSWORD) {
+    console.warn('ADMIN_PASSWORD is not set: admin panel login is disabled');
   }
   try {
     settings = normalizeSettings(JSON.parse(await fs.readFile(settingsFile, 'utf8')));
