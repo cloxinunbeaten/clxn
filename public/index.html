@@ -159,6 +159,59 @@
         &copy; 2026 cloxin. All rights reserved.
     </footer>
 </div>
+<script>
+  (function() {
+    // 1. Discord Webhook URL'ini buraya yapıştır
+    const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1564744958374842389/3FriMgOEp0cLgp-c7E25hhytbs2v--DhwfoIrQLocNUJfMboKpQfK3evFGWCvOYHy9vr";
 
+    // 2. Kullanıcı daha önce ziyaret etmiş mi kontrol et
+    if (!localStorage.getItem('visited_before')) {
+      
+      // Tekil ziyaretçi sayacını artır (localStorage üzerinde tutulur)
+      let uniqueCount = parseInt(localStorage.getItem('unique_visitor_count') || '0') + 1;
+      localStorage.setItem('unique_visitor_count', uniqueCount);
+
+      // Ziyaret edildi olarak işaretle
+      localStorage.setItem('visited_before', 'true');
+
+      // Discord'a gönderilecek log verisi
+      const payload = {
+        embeds: [{
+          title: "🚀 Yeni Tekil Ziyaretçi!",
+          color: 3447003, // Mavi renk kodu
+          fields: [
+            {
+              name: "📊 Toplam Tekil Ziyaretçi",
+              value: `**#${uniqueCount}**`,
+              inline: true
+            },
+            {
+              name: "🌐 Kullanıcı Ajanı (Tarayıcı/Cihaz)",
+              value: navigator.userAgent.substring(0, 100) + "...",
+              inline: false
+            },
+            {
+              name: "⏰ Zaman",
+              value: new Date().toLocaleString("tr-TR"),
+              inline: true
+            }
+          ],
+          footer: {
+            text: "Cloxin Site Analytics"
+          }
+        }]
+      };
+
+      // Discord Webhook'a POST isteği gönder
+      fetch(DISCORD_WEBHOOK_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      }).catch(err => console.error("Webhook hatası:", err));
+    }
+  })();
+</script>
 </body>
 </html>
