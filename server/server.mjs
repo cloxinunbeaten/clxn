@@ -6,7 +6,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import net from 'node:net';
 import { createTraffic, normalizeIp } from './traffic.mjs';
-
+if (!process.env.ADMIN_PASSWORD && process.env.ADMIN_PASSWORD_B64) {
+  process.env.ADMIN_PASSWORD = Buffer.from(process.env.ADMIN_PASSWORD_B64, 'base64').toString('utf8');
+}
 const host = '127.0.0.1';
 const port = Number(process.env.PORT || 8787);
 const serverDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -467,7 +469,8 @@ async function handleRequest(request, response) {
   }
 
   if (request.method === 'GET' && requestUrl.pathname === '/api/admin/session') {
-    sendJson(response, hasSession(request) ? 200 : 401, { authenticated: hasSession(request) });
+    const authenticated = hasSession(request);
+    sendJson(response, authenticated ? 200 : 401, { authenticated, canManageTraffic: authenticated });
     return;
   }
 
@@ -691,7 +694,7 @@ async function saveAccessFromDisk() {
 }
 
 async function start() {
-    if (!process.env.ADMIN_PASSWORD) {
+  if (!process.env.ADMIN_PASSWORD) {
     console.warn('ADMIN_PASSWORD is not set: admin panel login is disabled');
   }
   try {
